@@ -1,23 +1,21 @@
-# GWPV Cricket Live
+# GWPV Cricket Tournament
 
-A mobile-first live tournament website for the GWPV Society Cricket Championship.
+A responsive Firebase-powered tournament manager and public live-score website.
 
 ## Included
 
-- Public live-score page with automatic Firestore updates
-- Nine teams and 126 editable player records
-- Public player phone numbers
-- Pool A and Pool B fixtures
-- Points tables, results, semifinals and final
-- Rules and match procedure page
-- One-organizer email/password login
-- Mobile organizer dashboard
+- Dashboard with live, upcoming, and completed matches
+- Nine editable team slots, custom pools, captains, and player lists
+- Live scoreboard with cricket-over validation and optional detailed scorecards
+- Editable tournament details, announcements, committee, organizers, and volunteers
+- One-organizer Firebase email/password login
+- Real-time Firestore updates for every visitor
+- Database-level privacy for unpublished phone numbers
 - GitHub Pages deployment workflow
-- Firestore security rules
 
 ## Start here
 
-Follow **[SETUP.md](SETUP.md)** to connect Firebase and publish the website.
+Follow **[SETUP.md](SETUP.md)** to deploy the updated Firestore rules and publish the website.
 
 ## Local preview
 
@@ -25,16 +23,8 @@ Follow **[SETUP.md](SETUP.md)** to connect Firebase and publish the website.
 npm run start
 ```
 
-Open `http://localhost:8080`. Until Firebase is configured, the public page displays starter data and the organizer page displays the setup notice.
+Open `http://localhost:8080` for the public site and `http://localhost:8080/admin.html` for administration.
 
-## Data design
+## Data and privacy
 
-All tournament information is stored in one document:
-
-`tournaments/gwpv-2026`
-
-The public website listens to this document in real time. The organizer dashboard updates the same document. Firestore rules allow public reading and restrict writes to the configured organizer UID.
-
-## Privacy
-
-This project intentionally displays player phone numbers publicly at the organizer's request. Obtain player consent before entering numbers. Anyone with access to the public website can view and copy them.
+Published tournament data is stored in `tournaments/gwpv-2026`. Protected player and unpublished captain phone numbers are stored separately in `tournamentPrivate/gwpv-2026`. Firestore rules allow public reads only for the published document and restrict every write plus private-data reads to the configured organizer UID.

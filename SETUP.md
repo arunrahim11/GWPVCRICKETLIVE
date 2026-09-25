@@ -1,108 +1,61 @@
-# GWPV Cricket Live — Setup and Publishing
+# GWPV Cricket — Setup, Publishing, and Admin Guide
 
-You need a free Firebase project and a new GitHub repository. Complete the steps in order.
+The Firebase web configuration and organizer UID are already included. This static site loads Firebase directly, so `npm install firebase` is not required.
 
-## 1. Create the Firebase project
+## 1. Deploy the updated Firestore rules
 
-1. Open <https://console.firebase.google.com/> and select **Create a project**.
-2. Name it `GWPV Cricket Live`. Google Analytics is optional.
-3. In **Project overview**, select the Web icon (`</>`).
-4. Register the app as `gwpv-cricket-live`. Firebase Hosting is not required because GitHub Pages will host the website.
-5. Firebase displays a `firebaseConfig` object. Keep this page open.
+This step is required because protected phone numbers now use a private organizer-only document.
 
-## 2. Firebase web configuration — completed
+1. Open Firebase Console → **Firestore Database → Rules**.
+2. Open `firestore.rules` from this project and copy the complete contents.
+3. Replace the rules in Firebase and select **Publish**.
+4. Confirm that the organizer UID is `GHIfihuSOTTuUTriH6Jcb12ijZh2`.
 
-The supplied `js/firebase-config.js` is already connected to the `gwpv-cricket-live` Firebase project. You do not need to run `npm install firebase`; this static GitHub Pages project loads the modular Firebase browser SDK directly.
+Public visitors can read `tournaments/gwpv-2026`. Only the organizer can write it or read/write `tournamentPrivate/gwpv-2026`.
 
-Only replace the configuration if you decide to use a different Firebase project.
+## 2. Confirm organizer login
 
-Example structure:
+1. Open Firebase → **Authentication → Sign-in method** and enable **Email/Password**.
+2. Under **Users**, make sure the organizer account with the UID above exists.
+3. In **Authentication → Settings → Authorized domains**, add `arunrahim11.github.io`.
+4. Keep the organizer password private.
 
-```js
-export const firebaseConfig = {
-  apiKey: "...",
-  authDomain: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
-};
-```
+## 3. Publish the code on GitHub Pages
 
-Firebase web configuration identifies the project and is safe to include in a public website. Firestore Security Rules protect editing.
+1. Upload or replace all files in the `arunrahim11/GWPVCRICKETLIVE` repository, preserving the folders.
+2. Commit the changes to `main`.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, choose **GitHub Actions** if it is not already selected.
+5. Open **Actions** and wait for the Pages deployment to finish.
 
-## 3. Create the live database
+Public site: <https://arunrahim11.github.io/GWPVCRICKETLIVE/>
 
-1. In Firebase, open **Build → Firestore Database**.
-2. Select **Create database**.
-3. Choose a location near India, if available for your project.
-4. Start in **Production mode**.
-5. Open the **Rules** tab.
-6. You will paste the supplied `firestore.rules` after creating the organizer account in Step 4.
+Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 
-## 4. Create the single organizer account
+## 4. Enter the tournament
 
-1. Open **Build → Authentication → Get started**.
-2. Under **Sign-in method**, enable **Email/Password**.
-3. Open the **Users** tab and select **Add user**.
-4. Enter the organizer email and a strong password.
-5. Copy the user's **UID** from the Users table.
-6. Open `firestore.rules` and replace `PASTE_ORGANIZER_FIREBASE_UID` with that UID.
-7. Return to **Firestore Database → Rules**, paste the complete contents of `firestore.rules`, and select **Publish**.
+1. Sign in on `admin.html`. If the database is empty, select **Initialize tournament**.
+2. **Settings:** enter the editable tournament name, venue, dates, and announcement.
+3. **Pools:** create and name any number of pools, then save.
+4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, optional logo URL, assign a pool, and add up to 13 other players. The captain is always displayed first, making 14 players total.
+5. Check **Publish captain’s phone number** only when that captain’s contact should be public. Player phones and unpublished captain numbers remain organizer-only.
+6. **Matches:** select **New match**, choose registered teams, schedule in IST, and save.
+7. **Committee:** add main committee, organizing team, and volunteers/supporting members.
 
-Do not share the organizer password. Public visitors do not need an account.
+## 5. Update live scores
 
-## 5. Create and publish the GitHub repository
-
-1. Sign in at <https://github.com/new>.
-2. Repository name: `gwpv-cricket-live`.
-3. Set it to **Public** and create the repository without adding starter files.
-4. Upload every file and folder from this project, including `.github` and `.nojekyll`.
-5. Commit to the `main` branch.
-6. Open the repository's **Settings → Pages**.
-7. Under **Build and deployment**, select **GitHub Actions**.
-8. Open the **Actions** tab and wait for “Deploy GWPV Cricket to GitHub Pages” to finish.
-
-Your public address will normally be:
-
-`https://YOUR-GITHUB-USERNAME.github.io/gwpv-cricket-live/`
-
-Your organizer address will be:
-
-`https://YOUR-GITHUB-USERNAME.github.io/gwpv-cricket-live/admin.html`
-
-## 6. Allow the GitHub Pages domain in Firebase Authentication
-
-1. Open **Firebase → Authentication → Settings → Authorized domains**.
-2. Add `YOUR-GITHUB-USERNAME.github.io`.
-3. Do not include `https://` or the repository path.
-
-## 7. Initialize the tournament
-
-1. Open the organizer address ending with `/admin.html`.
-2. Sign in using the organizer email and password.
-3. Select **Initialize tournament**.
-4. Edit the tournament name, dates, venue, nine teams, 126 players, phone numbers, fixtures, rules and standings.
-
-Every saved change is published to the public page in real time.
-
-## Match-day workflow
-
-1. Before the match, open **Matches**, choose the match and confirm teams, date, time and venue.
-2. Set **Display priority** to “Feature on Live page”.
-3. At the toss, add the toss information and set status to **Live**.
-4. Update runs, wickets, overs and the live message after each over or important moment.
-5. At the end, set status to **Completed**, enter the result and Player of the Match, then publish.
-6. Open **Standings**, update played/won/lost/points/NRR and publish.
-
-## Updating website code later
-
-Edit files directly on GitHub or upload changed files and commit them to `main`. GitHub Actions republishes the website automatically. Tournament data and scores remain in Firebase and are not erased by code updates.
+1. Open **Matches** and select the match.
+2. Change status to **Live**.
+3. Enter runs, wickets, overs, current innings, batting team, and target where applicable.
+4. Save after each update. Public viewers receive the update automatically and see the last-updated time.
+5. Cricket overs must end in `.0` through `.5`. After `4.5`, the next completed legal ball is `5.0`.
+6. At the end, set status to **Completed**, enter the result and optional Player of the Match/scorecards, then save.
 
 ## Troubleshooting
 
-- **Public page says Demo data:** Firebase values are still placeholders or invalid.
-- **Organizer cannot sign in:** Enable Email/Password authentication and add the organizer user.
-- **Missing or insufficient permissions:** Confirm that the UID in the published Firestore Rules exactly matches the organizer user UID.
-- **Login works locally but not on GitHub:** Add the `github.io` domain to Firebase Authentication's authorized domains.
-- **GitHub page is 404:** Confirm Pages source is GitHub Actions and the deployment workflow completed successfully.
+- **Missing or insufficient permissions:** republish the included `firestore.rules` and confirm the UID.
+- **Private data blocked:** the updated rules have not been deployed yet.
+- **Organizer cannot sign in:** enable Email/Password and confirm the user exists.
+- **Login works locally but not on GitHub:** add `arunrahim11.github.io` to Authorized domains.
+- **GitHub page is 404:** check the latest workflow in the Actions tab and the Pages source.
+- **Old phone numbers exist in the public document:** after deploying rules, sign in and save any admin section once. The site migrates phone fields into the private document and removes private numbers from the public document.

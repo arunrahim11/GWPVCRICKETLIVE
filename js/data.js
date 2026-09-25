@@ -1,83 +1,97 @@
-const colors = ["#b9f227", "#f4b942", "#57c8ff", "#ff6b6b", "#c38bff", "#5fe0ba", "#ff8f4e", "#f36fb4", "#94a9ff"];
-
-const makePlayers = teamIndex => Array.from({ length: 14 }, (_, index) => ({
-  id: `t${teamIndex + 1}-p${index + 1}`,
-  name: `Player ${index + 1}`,
-  phone: "",
-  role: index === 0 ? "Captain / All-rounder" : index === 1 ? "Wicketkeeper" : index < 6 ? "Batter" : index < 10 ? "All-rounder" : "Bowler",
-  jersey: String(index + 1)
-}));
-
-export const defaultTeams = Array.from({ length: 9 }, (_, index) => ({
-  id: index < 5 ? `team-a${index + 1}` : `team-b${index - 4}`,
-  name: index < 5 ? `Team A${index + 1}` : `Team B${index - 4}`,
-  shortName: index < 5 ? `A${index + 1}` : `B${index - 4}`,
-  pool: index < 5 ? "A" : "B",
-  captain: "Player 1",
-  color: colors[index],
-  played: 0,
-  won: 0,
-  lost: 0,
-  points: 0,
-  nrr: "0.000",
-  players: makePlayers(index)
-}));
-
-const poolAFixtures = [[1,2],[3,4],[5,1],[2,3],[4,5],[1,3],[2,5],[4,1],[3,5],[2,4]];
-const poolBFixtures = [[1,2],[3,4],[1,3],[2,4],[1,4],[2,3]];
-
-const match = (number, stage, team1Id, team2Id) => ({
-  id: `match-${number}`,
-  number,
-  stage,
-  status: "Scheduled",
-  team1Id,
-  team2Id,
-  date: "",
-  time: "",
-  venue: "GWPV Ground",
-  note: "",
-  team1Runs: 0,
-  team1Wickets: 0,
-  team1Overs: "0.0",
-  team2Runs: 0,
-  team2Wickets: 0,
-  team2Overs: "0.0",
-  result: "",
-  playerOfMatch: "",
-  featured: number === 1
-});
-
-export const defaultMatches = [
-  ...poolAFixtures.map(([a,b], i) => match(i + 1, "Pool A", `team-a${a}`, `team-a${b}`)),
-  ...poolBFixtures.map(([a,b], i) => match(i + 11, "Pool B", `team-b${a}`, `team-b${b}`)),
-  match(17, "Semifinal", "TBD-A1", "TBD-B2"),
-  match(18, "Semifinal", "TBD-B1", "TBD-A2"),
-  match(19, "Final", "TBD-SF1", "TBD-SF2")
+export const MATCH_STATUSES = ["Upcoming", "Live", "Completed", "Postponed", "Cancelled"];
+export const COMMITTEE_SECTIONS = [
+  { value: "main", label: "Main committee" },
+  { value: "organizing", label: "Organizing team" },
+  { value: "volunteers", label: "Volunteers & supporting members" }
 ];
 
-export const defaultRules = [
-  "Every team must report at least 30 minutes before its scheduled start time.",
-  "Each registered squad contains 14 players; the playing XI must be submitted before the toss.",
-  "A win earns 2 points, a tie or no result earns 1 point, and a loss earns 0 points.",
-  "The top two teams from each pool qualify for the semifinals. Net Run Rate is the first tiebreaker.",
-  "Semifinal 1 is Pool A Rank 1 vs Pool B Rank 2. Semifinal 2 is Pool B Rank 1 vs Pool A Rank 2.",
-  "The umpire's decision is final. Only the captain may discuss a decision with the officials.",
-  "Match-specific playing conditions, powerplay and bowling limits are announced before the tournament.",
-  "Players must maintain society discipline and sporting conduct on and around the field."
-];
+export const createId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+export function emptyTeam(serial) {
+  return { id: `team-${serial}`, serial, name: "", logoUrl: "", captain: { name: "", phone: "", publishPhone: false }, poolId: "", players: [] };
+}
+
+export function emptyMatch(number = 1) {
+  return {
+    id: createId("match"), number, team1Id: "", team2Id: "", poolId: "", stage: "", date: "", time: "", venue: "",
+    status: "Upcoming", innings: 1, battingTeamId: "", target: "", result: "", note: "", playerOfMatch: "",
+    team1Runs: "", team1Wickets: "", team1Overs: "", team2Runs: "", team2Wickets: "", team2Overs: "",
+    battingScorecard: [], bowlingScorecard: [], lastUpdated: ""
+  };
+}
 
 export function createDefaultTournament() {
   return {
-    title: "GWPV Society Cricket Championship",
-    venue: "GWPV Ground",
-    dates: "Dates to be announced",
-    overs: 10,
-    status: "Upcoming",
-    announcement: "Welcome to the GWPV Society Cricket Championship.",
-    teams: structuredClone(defaultTeams),
-    matches: structuredClone(defaultMatches),
-    rules: [...defaultRules],
+    schemaVersion: 2,
+    settings: { title: "GWPV Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata" },
+    pools: [], teams: Array.from({ length: 9 }, (_, index) => emptyTeam(index + 1)), matches: [], committees: [],
     updatedAt: new Date().toISOString()
   };
+}
+
+function cleanPlayer(player = {}, index = 0) {
+  return { id: player.id || createId("player"), name: player.name || "", role: player.role || "", phone: player.phone || "", order: Number(player.order) || index + 1 };
+}
+
+export function normalizeTournament(raw) {
+  if (!raw) return createDefaultTournament();
+  const defaults = createDefaultTournament();
+  const oldPools = [...new Set((raw.teams || []).map(team => team.pool).filter(Boolean))];
+  const pools = Array.isArray(raw.pools) ? raw.pools.map((pool, index) => ({
+    id: pool.id || createId("pool"), name: pool.name || String(pool), displayOrder: Number(pool.displayOrder) || index + 1
+  })) : oldPools.map((name, index) => ({ id: `pool-${String(name).toLowerCase()}`, name: `Pool ${name}`, displayOrder: index + 1 }));
+  const sourceTeams = Array.isArray(raw.teams) ? raw.teams : [];
+  const teams = Array.from({ length: 9 }, (_, index) => {
+    const source = sourceTeams[index] || {};
+    const captainName = typeof source.captain === "string" ? source.captain : source.captain?.name || "";
+    const captainPlayer = (source.players || []).find(player => player.name && player.name === captainName);
+    const oldPoolName = source.pool ? `Pool ${source.pool}` : "";
+    const mappedPool = pools.find(pool => pool.id === source.poolId || pool.name === oldPoolName || pool.name === source.pool);
+    return {
+      ...emptyTeam(index + 1), id: source.id || `team-${index + 1}`, serial: Number(source.serial) || index + 1,
+      name: source.name || "", logoUrl: source.logoUrl || source.photoUrl || "",
+      captain: { name: captainName, phone: source.captain?.phone || captainPlayer?.phone || "", publishPhone: Boolean(source.captain?.publishPhone) },
+      poolId: source.poolId || mappedPool?.id || "",
+      players: (source.players || []).filter(player => player.name !== captainName).map(cleanPlayer)
+    };
+  });
+  const matches = (raw.matches || []).map((match, index) => ({
+    ...emptyMatch(index + 1), ...match, id: match.id || createId("match"), number: Number(match.number) || index + 1,
+    status: match.status === "Scheduled" || match.status === "Innings Break" ? (match.status === "Scheduled" ? "Upcoming" : "Live") : match.status || "Upcoming",
+    innings: Number(match.innings) || 1,
+    battingScorecard: Array.isArray(match.battingScorecard) ? match.battingScorecard : [], bowlingScorecard: Array.isArray(match.bowlingScorecard) ? match.bowlingScorecard : []
+  }));
+  return {
+    ...defaults, ...raw, schemaVersion: 2,
+    settings: {
+      ...defaults.settings, ...(raw.settings || {}), title: raw.settings?.title || raw.title || defaults.settings.title,
+      venue: raw.settings?.venue || raw.venue || "", announcement: raw.settings?.announcement || raw.announcement || ""
+    },
+    pools, teams, matches, committees: Array.isArray(raw.committees) ? raw.committees : []
+  };
+}
+
+export function isValidOvers(value) {
+  return value === "" || value == null || /^\d+\.[0-5]$/.test(String(value).trim());
+}
+
+export function oversToBalls(value) {
+  if (!isValidOvers(value) || value === "" || value == null) return null;
+  const [overs, balls] = String(value).split(".").map(Number);
+  return overs * 6 + balls;
+}
+
+export function validateTournament(data) {
+  const errors = [];
+  const namedTeams = data.teams.filter(team => team.name.trim());
+  const names = namedTeams.map(team => team.name.trim().toLowerCase());
+  const serials = data.teams.map(team => Number(team.serial));
+  if (new Set(names).size !== names.length) errors.push("Team names must be unique.");
+  if (new Set(serials).size !== serials.length) errors.push("Team serial numbers must be unique.");
+  if (serials.some(serial => !Number.isInteger(serial) || serial < 1 || serial > 9)) errors.push("Team serial numbers must be from 1 to 9.");
+  data.matches.forEach(match => {
+    if (match.team1Id && match.team1Id === match.team2Id) errors.push(`Match ${match.number}: choose two different teams.`);
+    if (!isValidOvers(match.team1Overs) || !isValidOvers(match.team2Overs)) errors.push(`Match ${match.number}: overs must end in .0 to .5 (for example 4.5, then 5.0).`);
+  });
+  return errors;
 }

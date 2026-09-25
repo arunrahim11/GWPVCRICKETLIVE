@@ -1,97 +1,137 @@
-import { createDefaultTournament } from "./data.js";
+import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
-let data = createDefaultTournament();
-let activeFixtureFilter = "all";
-
+let tournament = createDefaultTournament();
+let matchFilter = "Live";
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const esc = value => String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
-const teamById = id => data.teams.find(team => team.id === id) || { name: id?.startsWith("TBD") ? id.replaceAll("-", " ") : "TBD", shortName: "TBD", color: "#9fb6ad" };
-const scoreText = (runs, wickets, overs) => `${Number(runs || 0)}/${Number(wickets || 0)} <small>(${esc(overs || "0.0")})</small>`;
+const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 
-function routeTo(route) {
-  const target = document.getElementById(route);
-  if (!target) return;
-  $$(".bottom-nav button").forEach(button => button.classList.toggle("active", button.dataset.route === route));
-  target.scrollIntoView({ behavior: "smooth", block: "start" });
-  history.replaceState(null, "", `#${route}`);
+function team(id) { return tournament.teams.find(item => item.id === id); }
+function pool(id) { return tournament.pools.find(item => item.id === id); }
+function teamName(id) { return team(id)?.name || "Team to be confirmed"; }
+function hasScore(value) { return value !== "" && value != null; }
+function score(match, side) {
+  const runs = match[`${side}Runs`], wickets = match[`${side}Wickets`], overs = match[`${side}Overs`];
+  return hasScore(runs) ? `${runs}/${hasScore(wickets) ? wickets : 0}${hasScore(overs) ? ` (${overs} ov)` : ""}` : "Score pending";
+}
+function formatDate(date, time = "") {
+  if (!date) return "Date to be announced";
+  const value = new Date(`${date}T${time || "00:00"}:00+05:30`);
+  const dateText = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }).format(value);
+  if (!time) return dateText;
+  return `${dateText} · ${new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(value)} IST`;
+}
+function matchPlace(match) { return [pool(match.poolId)?.name || match.stage, match.venue].filter(Boolean).join(" · ") || "Details to be announced"; }
+function badge(status) { return `<span class="match-status status-${esc(status.toLowerCase())}">${esc(status)}</span>`; }
+function logoMarkup(item, className = "team-logo") { return item?.logoUrl ? `<img class="${className}" src="${esc(item.logoUrl)}" alt="${esc(item.name)} logo">` : `<span class="${className} fallback-logo">${esc(item?.name?.slice(0, 2).toUpperCase() || "G")}</span>`; }
+
+function scoreCard(match, prominent = false) {
+  const first = team(match.team1Id), second = team(match.team2Id);
+  const batting = teamName(match.battingTeamId);
+  const target = Number(match.target);
+  const battingRuns = match.battingTeamId === match.team1Id ? Number(match.team1Runs || 0) : Number(match.team2Runs || 0);
+  const required = target > 0 ? Math.max(target - battingRuns, 0) : null;
+  return `<article class="match-card ${prominent ? "live-card" : ""}">
+    <div class="match-card-head"><span>Match ${esc(match.number)}</span>${badge(match.status)}</div>
+    <div class="versus-score"><div>${logoMarkup(first, "score-logo")}<strong>${esc(teamName(match.team1Id))}</strong><b>${esc(score(match, "team1"))}</b></div><span>VS</span><div>${logoMarkup(second, "score-logo")}<strong>${esc(teamName(match.team2Id))}</strong><b>${esc(score(match, "team2"))}</b></div></div>
+    <p class="match-meta">${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p>
+    ${match.status === "Live" ? `<p class="live-detail">Innings ${esc(match.innings)}${match.battingTeamId ? ` · ${esc(batting)} batting` : ""}${required != null ? ` · ${required} run${required === 1 ? "" : "s"} required` : ""}</p>` : ""}
+    ${match.result ? `<p class="result-line">${esc(match.result)}</p>` : ""}
+    <button class="secondary-btn" data-score-id="${esc(match.id)}">View Scoreboard</button>
+  </article>`;
 }
 
-function renderLive() {
-  const live = data.matches.find(match => match.status === "Live") || data.matches.find(match => match.featured && match.status !== "Completed") || data.matches.find(match => match.status === "Scheduled");
-  const container = $("#liveMatch");
-  if (!live) {
-    container.innerHTML = `<div class="empty-state"><div><h3>No active match</h3><p>Check the fixtures for the next game.</p></div></div>`;
-  } else {
-    const one = teamById(live.team1Id); const two = teamById(live.team2Id);
-    container.classList.remove("skeleton-card");
-    container.innerHTML = `<div class="live-top"><span class="live-indicator">${live.status === "Live" ? "● LIVE NOW" : esc(live.status.toUpperCase())}</span><span class="match-stage">Match ${live.number} · ${esc(live.stage)}</span></div>
-      <div class="scoreboard"><div class="score-team"><span class="team-abbr">${esc(one.name)}</span><span class="score">${scoreText(live.team1Runs,live.team1Wickets,live.team1Overs)}</span></div><span class="versus">VS</span><div class="score-team"><span class="team-abbr">${esc(two.name)}</span><span class="score">${scoreText(live.team2Runs,live.team2Wickets,live.team2Overs)}</span></div></div>
-      <p class="live-message">${esc(live.result || live.note || `${live.date || "Date TBA"} · ${live.time || "Time TBA"} · ${live.venue || data.venue}`)}</p>`;
-  }
-  const completed = data.matches.filter(match => match.status === "Completed").slice(-3).reverse();
-  $("#recentResults").innerHTML = completed.length ? completed.map(match => {
-    const one=teamById(match.team1Id),two=teamById(match.team2Id);
-    return `<article class="result-card"><span class="match-stage">Match ${match.number} · ${esc(match.stage)}</span><div class="result-line">${esc(one.shortName)} ${match.team1Runs}/${match.team1Wickets} · ${esc(two.shortName)} ${match.team2Runs}/${match.team2Wickets}</div><p class="muted">${esc(match.result || "Match completed")}</p></article>`;
-  }).join("") : "";
+function fixtureRow(match) {
+  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))}</p><p>${esc(matchPlace(match))}</p>${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
 }
 
-function renderFixtures() {
-  const matches = data.matches.filter(match => activeFixtureFilter === "all" || (activeFixtureFilter === "Knockout" ? ["Semifinal","Final"].includes(match.stage) : match.stage === activeFixtureFilter));
-  $("#fixtureList").innerHTML = matches.map(match => {
-    const one=teamById(match.team1Id),two=teamById(match.team2Id);
-    const score = match.status === "Completed" || match.status === "Live" ? `${match.team1Runs}/${match.team1Wickets} – ${match.team2Runs}/${match.team2Wickets}` : `${match.date || "Date TBA"} · ${match.time || "Time TBA"}`;
-    return `<article class="fixture-card"><span class="fixture-no">MATCH ${match.number}</span><div><h3>${esc(one.name)} <span class="muted">vs</span> ${esc(two.name)}</h3><p>${esc(match.stage)} · ${esc(match.venue || data.venue)}${match.result ? ` · ${esc(match.result)}` : ""}</p></div><div><div class="fixture-score">${esc(score)}</div><span class="match-status ${match.status === "Live" ? "live" : ""}">${esc(match.status)}</span></div></article>`;
+function renderDashboard() {
+  const settings = tournament.settings;
+  $("#tournamentTitle").textContent = settings.title || "GWPV Cricket Tournament";
+  document.title = `${settings.title || "GWPV Cricket Tournament"} · Live`;
+  const dates = settings.startDate ? `${formatDate(settings.startDate)}${settings.endDate && settings.endDate !== settings.startDate ? ` – ${formatDate(settings.endDate)}` : ""}` : "Dates to be announced";
+  $("#tournamentMeta").textContent = [settings.venue || "Venue to be announced", dates].join(" · ");
+  $("#announcement").textContent = settings.announcement || "";
+  $("#announcement").classList.toggle("hidden", !settings.announcement);
+  const registered = tournament.teams.filter(item => item.name.trim()).length;
+  const completed = tournament.matches.filter(match => match.status === "Completed").length;
+  $("#teamCount").textContent = registered; $("#matchCount").textContent = tournament.matches.length;
+  $("#completedCount").textContent = completed; $("#remainingCount").textContent = tournament.matches.filter(match => !["Completed", "Cancelled"].includes(match.status)).length;
+  const live = tournament.matches.filter(match => match.status === "Live");
+  const upcoming = tournament.matches.filter(match => match.status === "Upcoming").sort(sortMatches);
+  $("#liveMatches").innerHTML = live.length ? live.map(match => scoreCard(match, true)).join("") : `<div class="empty-state"><strong>No live match currently</strong><p>${upcoming[0] ? `Next: ${esc(teamName(upcoming[0].team1Id))} vs ${esc(teamName(upcoming[0].team2Id))} · ${esc(formatDate(upcoming[0].date, upcoming[0].time))}` : "The next scheduled match will be highlighted here."}</p></div>`;
+  $("#upcomingMatches").innerHTML = upcoming.length ? upcoming.slice(0, 4).map(fixtureRow).join("") : empty("No upcoming matches scheduled.");
+  const recent = tournament.matches.filter(match => match.status === "Completed").sort((a, b) => sortMatches(b, a));
+  $("#recentMatches").innerHTML = recent.length ? recent.slice(0, 4).map(fixtureRow).join("") : empty("No completed matches yet.");
+  const latest = live.map(match => match.lastUpdated).filter(Boolean).sort().pop() || tournament.updatedAt;
+  $("#lastUpdated").textContent = latest ? `Last updated ${new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(latest))} IST` : "Waiting for data";
+}
+
+function sortMatches(a, b) { return `${a.date || "9999"}${a.time || "99"}`.localeCompare(`${b.date || "9999"}${b.time || "99"}`); }
+function empty(message) { return `<div class="empty-state compact"><p>${esc(message)}</p></div>`; }
+
+function renderTeams(activePool = "all") {
+  const pools = [...tournament.pools].sort((a,b) => a.displayOrder - b.displayOrder);
+  $("#poolFilters").innerHTML = `<button class="chip ${activePool === "all" ? "active" : ""}" data-pool-filter="all">All teams</button>${pools.map(item => `<button class="chip ${activePool === item.id ? "active" : ""}" data-pool-filter="${esc(item.id)}">${esc(item.name)}</button>`).join("")}`;
+  const teams = tournament.teams.filter(item => item.name.trim() && (activePool === "all" || item.poolId === activePool)).sort((a,b) => a.serial - b.serial);
+  $("#teamGrid").innerHTML = teams.length ? teams.map(item => `<article class="team-card"><span class="serial-badge">#${item.serial}</span>${logoMarkup(item)}<h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p><div class="captain-line"><span>Captain</span><strong>${esc(item.captain.name || "Not entered")}</strong>${item.captain.publishPhone && item.captain.phone ? `<a href="tel:${esc(item.captain.phone)}">${esc(item.captain.phone)}</a>` : ""}</div><button class="secondary-btn" data-team-id="${esc(item.id)}">View Players</button></article>`).join("") : empty("No teams have been registered in this view.");
+  $$('[data-pool-filter]').forEach(button => button.addEventListener("click", () => renderTeams(button.dataset.poolFilter)));
+  $$('[data-team-id]').forEach(button => button.addEventListener("click", () => openTeam(button.dataset.teamId)));
+}
+
+function renderMatches() {
+  const matches = tournament.matches.filter(match => match.status === matchFilter).sort(sortMatches);
+  $("#matchList").innerHTML = matches.length ? matches.map(fixtureRow).join("") : empty(`No ${matchFilter.toLowerCase()} matches.`);
+}
+
+function renderCommittee() {
+  $("#committeeContent").innerHTML = COMMITTEE_SECTIONS.map(section => {
+    const members = tournament.committees.filter(member => member.section === section.value).sort((a,b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0));
+    return `<section class="committee-section"><h2>${esc(section.label)}</h2><div class="member-grid">${members.length ? members.map(member => `<article class="member-card">${member.photoUrl ? `<img src="${esc(member.photoUrl)}" alt="${esc(member.name)}">` : `<span class="member-photo">${esc(member.name?.slice(0,2).toUpperCase() || "G")}</span>`}<h3>${esc(member.name)}</h3><strong>${esc(member.designation || "")}</strong><p>${esc(member.responsibility || "")}</p></article>`).join("") : empty("Details will be added soon.")}</div></section>`;
   }).join("");
 }
 
-function renderTable(pool, target) {
-  const teams = data.teams.filter(team => team.pool === pool).sort((a,b) => Number(b.points)-Number(a.points) || Number(b.nrr)-Number(a.nrr));
-  $(target).innerHTML = teams.map((team,index) => `<tr><td class="rank">${index+1}</td><td>${esc(team.name)}</td><td>${team.played||0}</td><td>${team.won||0}</td><td>${team.lost||0}</td><td><strong>${team.points||0}</strong></td><td>${Number(team.nrr||0)>=0?"+":""}${esc(team.nrr||"0.000")}</td></tr>`).join("");
-}
-
-function renderTeams() {
-  $("#teamGrid").innerHTML = data.teams.map(team => `<article class="team-card" data-team-id="${esc(team.id)}" style="--team-color:${esc(team.color)}"><span class="pool-badge">POOL ${esc(team.pool)}</span><h3>${esc(team.name)}</h3><p>Captain: ${esc(team.captain || "TBA")}</p><p>${team.players?.length || 0} registered players</p></article>`).join("");
-  $$(".team-card").forEach(card => card.addEventListener("click", () => openTeam(card.dataset.teamId)));
-}
-
-function openTeam(teamId) {
-  const team = teamById(teamId);
-  $("#teamDialogContent").innerHTML = `<span class="pool-badge">POOL ${esc(team.pool)}</span><h2>${esc(team.name)}</h2><p class="muted">Captain: ${esc(team.captain || "TBA")}</p><div class="player-list">${(team.players||[]).map((player,index)=>`<div class="player-row"><strong>${index+1}</strong><div>${esc(player.name)}<small>${esc(player.role)} · Jersey ${esc(player.jersey)}</small></div><a href="${player.phone ? `tel:${esc(player.phone)}` : "#"}">${esc(player.phone || "No phone")}</a></div>`).join("")}</div>`;
+function openTeam(id) {
+  const item = team(id); if (!item) return;
+  const rows = [{ name: item.captain.name || "Captain not entered", role: "Captain", isCaptain: true }, ...item.players.filter(player => player.name.trim())];
+  $("#teamDialogContent").innerHTML = `<div class="dialog-team-head">${logoMarkup(item)}<div><p class="eyebrow">TEAM #${item.serial}</p><h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p></div></div><div class="player-list">${rows.map((player, index) => `<div><span>${index + 1}</span><strong>${esc(player.name)}</strong><em>${esc(player.isCaptain ? "Captain" : player.role || "Player")}</em></div>`).join("")}</div>`;
   $("#teamDialog").showModal();
 }
 
-function render() {
-  document.title = `${data.title} · Live`;
-  $("#tournamentTitle").textContent = data.title;
-  $("#tournamentMeta").textContent = `${data.teams.length} teams · ${data.dates} · ${data.venue}`;
-  $("#teamCount").textContent = data.teams.length;
-  $("#playerCount").textContent = data.teams.reduce((sum,team)=>sum+(team.players?.length||0),0);
-  $("#matchCount").textContent = data.matches.length;
-  $("#completedCount").textContent = data.matches.filter(match=>match.status==="Completed").length;
-  $("#lastUpdated").textContent = data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}` : "";
-  renderLive(); renderFixtures(); renderTable("A","#poolATable"); renderTable("B","#poolBTable"); renderTeams();
-  $("#rulesContent").innerHTML = `<ol>${(data.rules||[]).map(rule=>`<li>${esc(rule)}</li>`).join("")}</ol>`;
+function scoreTable(title, rows, columns) {
+  if (!rows?.length) return "";
+  return `<section class="score-table"><h3>${esc(title)}</h3><div class="table-scroll"><table><thead><tr>${columns.map(column => `<th>${esc(column.label)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${columns.map(column => `<td>${esc(row[column.key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div></section>`;
+}
+function openScore(id) {
+  const match = tournament.matches.find(item => item.id === id); if (!match) return;
+  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)}</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2>${badge(match.status)}<p>${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p></div>${scoreCard(match)}${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}${!match.battingScorecard?.length && !match.bowlingScorecard?.length ? empty("Detailed scorecard has not been entered.") : ""}`;
+  $("#scoreDialog").showModal();
 }
 
-async function connect() {
-  const badge = $("#connectionBadge");
-  try {
-    const services = await getFirebaseServices();
-    if (!services) {
-      badge.innerHTML = "<span></span> Demo data"; badge.title = "Connect Firebase to publish live data"; render(); return;
-    }
-    services.firestoreSdk.onSnapshot(services.tournamentRef, snapshot => {
-      if (snapshot.exists()) data = snapshot.data();
-      badge.classList.add("online"); badge.innerHTML = "<span></span> Live"; render();
-    }, error => { badge.textContent = "Data unavailable"; console.error(error); });
-  } catch (error) { badge.textContent = "Offline"; console.error(error); render(); }
+function renderAll() { renderDashboard(); renderTeams(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
+function bindDynamicButtons() {
+  $$('[data-score-id]').forEach(button => button.onclick = () => openScore(button.dataset.scoreId));
 }
 
-document.addEventListener("click", event => {
-  const routeButton = event.target.closest("[data-route]"); if (routeButton) routeTo(routeButton.dataset.route);
-});
-$(".dialog-close").addEventListener("click",()=>$("#teamDialog").close());
-$$("[data-filter]").forEach(button=>button.addEventListener("click",()=>{ activeFixtureFilter=button.dataset.filter; $$("[data-filter]").forEach(item=>item.classList.toggle("active",item===button)); renderFixtures(); }));
-connect();
+function route(name) {
+  const valid = ["dashboard", "teams", "matches", "committee"].includes(name) ? name : "dashboard";
+  $$(".page-section").forEach(section => section.classList.toggle("active", section.id === valid));
+  $$('[data-route]').forEach(button => button.classList.toggle("active", button.dataset.route === valid));
+  history.replaceState(null, "", `#${valid}`); window.scrollTo({ top: 0, behavior: "smooth" });
+}
+$$('[data-route]').forEach(button => button.addEventListener("click", event => { if (button.tagName === "BUTTON") event.preventDefault(); route(button.dataset.route); }));
+$$('[data-match-filter]').forEach(button => button.addEventListener("click", () => { matchFilter = button.dataset.matchFilter; $$('[data-match-filter]').forEach(item => item.classList.toggle("active", item === button)); renderMatches(); bindDynamicButtons(); }));
+$$('.dialog-close').forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
+$$('dialog').forEach(dialog => dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); }));
+
+async function boot() {
+  route(location.hash.slice(1)); renderAll();
+  const services = await getFirebaseServices();
+  if (!services) { $("#connectionBadge").innerHTML = "<span></span> Setup required"; return; }
+  services.firestoreSdk.onSnapshot(services.tournamentRef, snapshot => {
+    tournament = normalizeTournament(snapshot.exists() ? snapshot.data() : null); renderAll();
+    $("#connectionBadge").innerHTML = "<span></span> Live"; $("#connectionBadge").className = "status-pill saved";
+  }, error => { $("#connectionBadge").innerHTML = "<span></span> Offline"; console.error(error); });
+}
+boot().catch(console.error);
