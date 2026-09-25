@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071a16">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Organizer Dashboard · GWPV Cricket</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="admin-body">
+  <header class="site-header admin-header">
+    <a class="brand" href="index.html"><span class="brand-mark">G</span><span><strong>GWPV</strong><small>ORGANIZER</small></span></a>
+    <button id="signOutBtn" class="ghost-btn small hidden">Sign out</button>
+  </header>
+
+  <main class="admin-main">
+    <section id="setupNotice" class="notice-card hidden">
+      <h2>Firebase setup required</h2>
+      <p>Open <code>js/firebase-config.js</code>, paste your Firebase web configuration, deploy the Firestore rules, and refresh this page.</p>
+      <a class="primary-btn inline-btn" href="SETUP.md">Open setup guide</a>
+    </section>
+
+    <section id="loginPanel" class="login-card hidden">
+      <p class="eyebrow">SECURE ORGANIZER ACCESS</p>
+      <h1>Sign in to manage the tournament</h1>
+      <form id="loginForm">
+        <label>Email<input id="loginEmail" type="email" autocomplete="username" required placeholder="organizer@example.com"></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required minlength="6"></label>
+        <button class="primary-btn" type="submit">Sign in</button>
+        <p id="loginError" class="form-error" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="adminPanel" class="hidden">
+      <div class="admin-title-row">
+        <div><p class="eyebrow">CONTROL ROOM</p><h1>Tournament dashboard</h1></div>
+        <span id="saveState" class="status-pill"><span></span> Ready</span>
+      </div>
+
+      <nav class="admin-tabs" aria-label="Dashboard sections">
+        <button class="active" data-admin-tab="overview">Overview</button>
+        <button data-admin-tab="teams">Teams</button>
+        <button data-admin-tab="matches">Matches</button>
+        <button data-admin-tab="standings">Standings</button>
+        <button data-admin-tab="rules">Rules</button>
+      </nav>
+
+      <section id="admin-overview" class="admin-tab active">
+        <div id="initializeCard" class="notice-card hidden">
+          <h2>No tournament data found</h2>
+          <p>Create the nine-team starter tournament with 126 editable player slots.</p>
+          <button id="initializeBtn" class="primary-btn">Initialize tournament</button>
+        </div>
+        <form id="settingsForm" class="admin-card form-grid">
+          <h2>Tournament information</h2>
+          <label class="span-2">Tournament name<input name="title" required></label>
+          <label>Venue<input name="venue"></label>
+          <label>Dates<input name="dates" placeholder="10–12 October 2026"></label>
+          <label>Overs per innings<input name="overs" type="number" min="1" max="50"></label>
+          <label>Status<select name="status"><option>Registration</option><option>Upcoming</option><option>Live</option><option>Completed</option></select></label>
+          <label class="span-2">Public announcement<textarea name="announcement" rows="3"></textarea></label>
+          <button class="primary-btn span-2" type="submit">Save tournament details</button>
+        </form>
+      </section>
+
+      <section id="admin-teams" class="admin-tab">
+        <div class="admin-card">
+          <div class="card-heading"><h2>Team and player editor</h2><select id="teamSelector" aria-label="Choose team"></select></div>
+          <form id="teamForm">
+            <div class="form-grid compact">
+              <label>Team name<input name="name" required></label>
+              <label>Pool<select name="pool"><option>A</option><option>B</option></select></label>
+              <label>Captain<input name="captain"></label>
+              <label>Team colour<input name="color" type="color"></label>
+            </div>
+            <div class="player-editor-wrap"><table class="player-editor"><thead><tr><th>#</th><th>Player</th><th>Phone</th><th>Role</th><th>Jersey</th></tr></thead><tbody id="playerEditor"></tbody></table></div>
+            <button class="primary-btn" type="submit">Save team and players</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="admin-matches" class="admin-tab">
+        <div class="admin-card">
+          <div class="card-heading"><h2>Live score & match editor</h2><select id="matchSelector" aria-label="Choose match"></select></div>
+          <form id="matchForm" class="form-grid">
+            <label>Stage<select name="stage"><option>Pool A</option><option>Pool B</option><option>Semifinal</option><option>Final</option></select></label>
+            <label>Status<select name="status"><option>Scheduled</option><option>Live</option><option>Innings Break</option><option>Completed</option><option>Postponed</option></select></label>
+            <label>Team 1<select name="team1Id"></select></label>
+            <label>Team 2<select name="team2Id"></select></label>
+            <label>Date<input name="date" type="date"></label>
+            <label>Time<input name="time" type="time"></label>
+            <label>Venue<input name="venue"></label>
+            <label>Toss / note<input name="note"></label>
+            <fieldset class="score-fieldset"><legend>Team 1 score</legend><label>Runs<input name="team1Runs" type="number" min="0"></label><label>Wickets<input name="team1Wickets" type="number" min="0" max="10"></label><label>Overs<input name="team1Overs" inputmode="decimal"></label></fieldset>
+            <fieldset class="score-fieldset"><legend>Team 2 score</legend><label>Runs<input name="team2Runs" type="number" min="0"></label><label>Wickets<input name="team2Wickets" type="number" min="0" max="10"></label><label>Overs<input name="team2Overs" inputmode="decimal"></label></fieldset>
+            <label class="span-2">Live message / result<textarea name="result" rows="2" placeholder="Team A1 needs 24 runs from 12 balls"></textarea></label>
+            <label>Player of the match<input name="playerOfMatch"></label>
+            <label>Display priority<select name="featured"><option value="false">Normal</option><option value="true">Feature on Live page</option></select></label>
+            <button class="primary-btn span-2" type="submit">Publish match update</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="admin-standings" class="admin-tab">
+        <form id="standingsForm" class="admin-card">
+          <h2>Points table editor</h2>
+          <p class="muted">Update after each completed match. Enter NRR with + or − sign.</p>
+          <div class="player-editor-wrap"><table class="player-editor"><thead><tr><th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th></tr></thead><tbody id="standingsEditor"></tbody></table></div>
+          <button class="primary-btn" type="submit">Publish standings</button>
+        </form>
+      </section>
+
+      <section id="admin-rules" class="admin-tab">
+        <form id="rulesForm" class="admin-card">
+          <h2>Rules and match procedure</h2>
+          <p class="muted">Enter one rule per line. Changes appear immediately on the public website.</p>
+          <textarea id="rulesEditor" rows="16"></textarea>
+          <button class="primary-btn" type="submit">Publish rules</button>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
