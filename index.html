@@ -17,6 +17,7 @@
   <nav class="top-nav" aria-label="Main navigation">
     <button class="active" data-route="dashboard">Dashboard</button>
     <button data-route="teams">Teams &amp; Pools</button>
+    <button data-route="teammates">All Teammates</button>
     <button data-route="matches">Matches &amp; Scoreboard</button>
     <button data-route="committee">Committee &amp; Organizers</button>
   </nav>
@@ -46,6 +47,12 @@
       <div id="poolFilters" class="filter-row"></div><div id="teamGrid" class="team-grid"></div>
     </section>
 
+    <section id="teammates" class="page-section content-section">
+      <div class="section-heading"><div><p class="eyebrow">GWPV PLAYER DIRECTORY</p><h1>All Teammates</h1></div></div>
+      <div class="directory-tools"><label>Search players<input id="teammateSearch" type="search" placeholder="Search name, GWID or team"></label><label>Filter team<select id="teammateTeamFilter"><option value="all">All teams</option></select></label></div>
+      <div class="directory-card"><div class="table-scroll"><table class="teammate-table"><thead><tr><th>#</th><th>Player</th><th>GWID</th><th>Team No.</th><th>Team</th><th>Role</th><th>Phone</th></tr></thead><tbody id="teammateDirectory"></tbody></table></div></div>
+    </section>
+
     <section id="matches" class="page-section content-section">
       <div class="section-heading"><div><p class="eyebrow">MATCH CENTRE</p><h1>Matches &amp; Scoreboard</h1></div></div>
       <div class="filter-row" role="group" aria-label="Match filters"><button class="chip active" data-match-filter="Live">Live</button><button class="chip" data-match-filter="Upcoming">Upcoming</button><button class="chip" data-match-filter="Completed">Completed</button></div>
@@ -60,7 +67,7 @@
 
   <dialog id="teamDialog" class="content-dialog"><button class="dialog-close" aria-label="Close">×</button><div id="teamDialogContent"></div></dialog>
   <dialog id="scoreDialog" class="content-dialog wide-dialog"><button class="dialog-close" aria-label="Close">×</button><div id="scoreDialogContent"></div></dialog>
-  <nav class="bottom-nav" aria-label="Mobile navigation"><button class="active" data-route="dashboard"><span>⌂</span>Dashboard</button><button data-route="teams"><span>♟</span>Teams</button><button data-route="matches"><span>▦</span>Matches</button><button data-route="committee"><span>★</span>Committee</button></nav>
+  <nav class="bottom-nav" aria-label="Mobile navigation"><button class="active" data-route="dashboard"><span>⌂</span>Dashboard</button><button data-route="teams"><span>♟</span>Teams</button><button data-route="teammates"><span>☷</span>Players</button><button data-route="matches"><span>▦</span>Matches</button><button data-route="committee"><span>★</span>Committee</button></nav>
   <footer><p>GWPV Cricket Tournament · <a href="admin.html">Organizer login</a></p></footer>
   <script type="module" src="js/app.js"></script>
 </body>

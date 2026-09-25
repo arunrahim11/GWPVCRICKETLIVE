@@ -4,7 +4,7 @@ The Firebase web configuration and organizer UID are already included. This stat
 
 ## 1. Deploy the updated Firestore rules
 
-This step is required because protected phone numbers now use a private organizer-only document.
+This step is required because protected phone numbers use a private organizer-only document and uploaded logos use separate public logo documents.
 
 1. Open Firebase Console → **Firestore Database → Rules**.
 2. Open `firestore.rules` from this project and copy the complete contents.
@@ -37,10 +37,11 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 1. Sign in on `admin.html`. If the database is empty, select **Initialize tournament**.
 2. **Settings:** enter the editable tournament name, venue, dates, and announcement.
 3. **Pools:** create and name any number of pools, then save.
-4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, optional logo URL, assign a pool, and add up to 13 other players. The captain is always displayed first, making 14 players total.
-5. Check **Publish captain’s phone number** only when that captain’s contact should be public. Player phones and unpublished captain numbers remain organizer-only.
-6. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save.
-7. **Committee:** add main committee, organizing team, and volunteers/supporting members.
+4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, captain GWID, optional logo URL, assign a pool, and add up to 13 other players. Enter a unique GWID for every player. The captain is always displayed first, making 14 players total.
+5. Upload a JPG, PNG, WebP, or GIF team logo directly in the team editor. The file must be 50 KB or smaller. The logo appears on team cards, live scores, match scoreboards, and the player directory.
+6. In **Settings**, use **Show player phone numbers in the public All Teammates directory** to control directory phone visibility.
+7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save.
+8. **Committee:** add main committee, organizing team, and volunteers/supporting members.
 
 ## 5. Update live scores
 

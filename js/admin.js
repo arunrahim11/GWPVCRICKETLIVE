@@ -3,6 +3,7 @@ import { getFirebaseServices } from "./firebase.js";
 
 let services, tournament, unsubscribe, unsubscribePrivate, publicSnapshot, privateSnapshot = { teams: [] };
 let selectedTeamId = "team-1", selectedMatchId = "", selectedScoreMatchId = "", selectedMemberId = "", selectedInningsNumber = 1;
+let teamLogos = {}, unsubscribeLogos;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -22,7 +23,7 @@ async function persist(success = "Saved live") {
   try {
     const privateData = { teams: tournament.teams.map(team => ({ id: team.id, captainPhone: team.captain.phone || "", playerPhones: Object.fromEntries(team.players.map(player => [player.id, player.phone || ""])) })), updatedAt: tournament.updatedAt };
     const publicData = structuredClone(tournament);
-    publicData.teams.forEach(team => { if (!team.captain.publishPhone) team.captain.phone = ""; team.players.forEach(player => { player.phone = ""; }); });
+    publicData.teams.forEach(team => { if (!team.captain.publishPhone && !publicData.settings.publishDirectoryPhones) team.captain.phone = ""; if (!publicData.settings.publishDirectoryPhones) team.players.forEach(player => { player.phone = ""; }); });
     await services.firestoreSdk.setDoc(services.privateTournamentRef, privateData);
     await services.firestoreSdk.setDoc(services.tournamentRef, publicData);
     setSaveState(success, "saved"); setTimeout(() => setSaveState("Ready"), 2200); return true;
@@ -32,7 +33,7 @@ async function persist(success = "Saved live") {
 
 function showAuth(user) {
   $("#loginPanel").classList.toggle("hidden", Boolean(user)); $("#adminPanel").classList.toggle("hidden", !user); $("#signOutBtn").classList.toggle("hidden", !user);
-  if (user) subscribe(); else { if (unsubscribe) unsubscribe(); if (unsubscribePrivate) unsubscribePrivate(); unsubscribe = null; unsubscribePrivate = null; }
+  if (user) subscribe(); else { if (unsubscribe) unsubscribe(); if (unsubscribePrivate) unsubscribePrivate(); if (unsubscribeLogos) unsubscribeLogos(); unsubscribe = null; unsubscribePrivate = null; unsubscribeLogos = null; }
 }
 function mergePrivateContacts() {
   if (!publicSnapshot) return;
@@ -54,6 +55,7 @@ function subscribe() {
     if (tournament) mergePrivateContacts();
   }, error => { setSaveState("Permission error", "error"); console.error(error); });
   unsubscribePrivate = services.firestoreSdk.onSnapshot(services.privateTournamentRef, snapshot => { privateSnapshot = snapshot.exists() ? snapshot.data() : { teams: [] }; if (publicSnapshot) mergePrivateContacts(); }, error => { setSaveState("Private data blocked", "error"); showErrors(["Deploy the included Firestore rules to enable protected phone-number storage."]); console.error(error); });
+  unsubscribeLogos = services.firestoreSdk.onSnapshot(services.teamLogosRef, snapshot => { teamLogos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url)); if (tournament) renderTeamEditor(); }, console.error);
 }
 
 function renderAdmin() {
@@ -71,14 +73,17 @@ function renderTeamSelector() {
 }
 function renderTeamEditor() {
   const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
-  fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainPhone: team.captain.phone, publishPhone: team.captain.publishPhone });
+  fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainGwid: team.captain.gwid, captainPhone: team.captain.phone, publishPhone: team.captain.publishPhone });
   $("#teamForm").elements.poolId.innerHTML = poolOptions(team.poolId);
-  const captainRow = `<tr class="captain-admin-row"><td>1</td><td><input value="${attr(team.captain.name || "Enter captain above")}" disabled></td><td><input value="Captain" disabled></td><td><input value="${attr(team.captain.phone || "")}" disabled></td><td><span class="captain-lock">Captain</span></td></tr>`;
+  const captainRow = `<tr class="captain-admin-row"><td>1</td><td><input value="${attr(team.captain.name || "Enter captain above")}" disabled></td><td><input value="${attr(team.captain.gwid || "Enter GWID above")}" disabled></td><td><input value="Captain" disabled></td><td><input value="${attr(team.captain.phone || "")}" disabled></td><td><span class="captain-lock">Captain</span></td></tr>`;
   const additionalRows = team.players.map((player, index) => playerRow(player, index)).join("");
   $("#playerEditor").innerHTML = captainRow + (additionalRows || `<tr class="empty-row"><td colspan="5">No additional players added.</td></tr>`);
   $("#addPlayerBtn").disabled = team.players.length >= 13;
+  const logo = teamLogos[team.id] || team.logoUrl;
+  $("#teamLogoPreview").innerHTML = logo ? `<img src="${attr(logo)}" alt="${attr(team.name || "Team")} logo">` : "No logo";
+  $("#removeTeamLogoBtn").disabled = !teamLogos[team.id];
 }
-function playerRow(player, index) { return `<tr data-player-id="${attr(player.id)}"><td>${index + 2}</td><td><input name="playerName" value="${attr(player.name)}"></td><td><input name="playerRole" value="${attr(player.role)}" placeholder="Batter, bowler…"></td><td><input name="playerPhone" type="tel" value="${attr(player.phone)}"></td><td><button class="icon-danger remove-player" type="button" aria-label="Remove player">×</button></td></tr>`; }
+function playerRow(player, index) { return `<tr data-player-id="${attr(player.id)}"><td>${index + 2}</td><td><input name="playerName" value="${attr(player.name)}"></td><td><input name="playerGwid" value="${attr(player.gwid)}" placeholder="Unique GWID"></td><td><input name="playerRole" value="${attr(player.role)}" placeholder="Batter, bowler…"></td><td><input name="playerPhone" type="tel" value="${attr(player.phone)}"></td><td><button class="icon-danger remove-player" type="button" aria-label="Remove player">×</button></td></tr>`; }
 
 function renderMatchSelector() {
   const sorted = [...tournament.matches].sort((a,b) => a.number - b.number);
@@ -163,24 +168,39 @@ function parseScorecard(text, keys) {
 $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginError").textContent = ""; try { await services.authSdk.signInWithEmailAndPassword(services.auth, $("#loginEmail").value.trim(), $("#loginPassword").value); } catch (error) { $("#loginError").textContent = "Sign-in failed. Check the email, password, and Firebase Authentication setup."; console.error(error); } });
 $("#signOutBtn").addEventListener("click", () => services.authSdk.signOut(services.auth));
 $("#initializeBtn").addEventListener("click", async () => { tournament = createDefaultTournament(); await persist("Tournament initialized"); });
-$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); tournament.settings = { ...tournament.settings, ...formObject(event.currentTarget), timezone: "Asia/Kolkata" }; await persist(); });
+$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); tournament.settings = { ...tournament.settings, ...formObject(event.currentTarget), publishDirectoryPhones: event.currentTarget.elements.publishDirectoryPhones.checked, timezone: "Asia/Kolkata" }; await persist(); });
 
 $("#addPoolBtn").addEventListener("click", () => { tournament.pools.push({ id: createId("pool"), name: "", displayOrder: tournament.pools.length + 1 }); renderPools(); });
 $("#poolEditor").addEventListener("click", event => { const button = event.target.closest(".remove-pool"); if (!button) return; const id = button.closest("[data-pool-id]").dataset.poolId; if (tournament.teams.some(team => team.poolId === id) || tournament.matches.some(match => match.poolId === id)) { showErrors(["This pool is assigned to a team or match. Reassign it before removing the pool."]); return; } tournament.pools = tournament.pools.filter(pool => pool.id !== id); renderPools(); });
 $("#savePoolsBtn").addEventListener("click", async () => { tournament.pools = $$("#poolEditor [data-pool-id]").map((row, index) => ({ id: row.dataset.poolId, name: row.querySelector('[name="name"]').value.trim(), displayOrder: Number(row.querySelector('[name="displayOrder"]').value) || index + 1 })); if (tournament.pools.some(pool => !pool.name)) { showErrors(["Every pool needs a name."]); return; } const names = tournament.pools.map(pool => pool.name.toLowerCase()); if (new Set(names).size !== names.length) { showErrors(["Pool names must be unique."]); return; } await persist(); });
 
 $("#teamSelector").addEventListener("change", event => { selectedTeamId = event.target.value; renderTeamEditor(); });
-$("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (team.players.length >= 13) { showErrors(["This team already has 14 players: one captain and 13 additional players."]); return; } team.players.push({ id: createId("player"), name: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });
+$("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (team.players.length >= 13) { showErrors(["This team already has 14 players: one captain and 13 additional players."]); return; } team.players.push({ id: createId("player"), name: "", gwid: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });
 $("#playerEditor").addEventListener("click", event => { const button = event.target.closest(".remove-player"); if (!button) return; const id = button.closest("tr").dataset.playerId; const team = tournament.teams.find(item => item.id === selectedTeamId); team.players = team.players.filter(player => player.id !== id); renderTeamEditor(); });
 $("#teamForm").addEventListener("submit", async event => {
   event.preventDefault(); const form = event.currentTarget, values = formObject(form); const team = tournament.teams.find(item => item.id === selectedTeamId);
-  Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), phone: values.captainPhone.trim(), publishPhone: form.elements.publishPhone.checked } });
+  Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), gwid: values.captainGwid.trim(), phone: values.captainPhone.trim(), publishPhone: form.elements.publishPhone.checked } });
   const captainKey = team.captain.name.trim().toLowerCase();
-  team.players = $$("#playerEditor tr[data-player-id]").map((row, index) => ({ id: row.dataset.playerId, name: row.querySelector('[name="playerName"]').value.trim(), role: row.querySelector('[name="playerRole"]').value.trim(), phone: row.querySelector('[name="playerPhone"]').value.trim(), order: index + 1 })).filter(player => (player.name || player.role || player.phone) && (!captainKey || player.name.toLowerCase() !== captainKey));
+  team.players = $$("#playerEditor tr[data-player-id]").map((row, index) => ({ id: row.dataset.playerId, name: row.querySelector('[name="playerName"]').value.trim(), gwid: row.querySelector('[name="playerGwid"]').value.trim(), role: row.querySelector('[name="playerRole"]').value.trim(), phone: row.querySelector('[name="playerPhone"]').value.trim(), order: index + 1 })).filter(player => (player.name || player.gwid || player.role || player.phone) && (!captainKey || player.name.toLowerCase() !== captainKey));
   if (team.name && !team.captain.name) { showErrors(["Enter the captain’s name for this registered team."]); return; }
+  if (team.name && !team.captain.gwid) { showErrors(["Enter a unique GWID for the captain."]); return; }
+  if (team.players.some(player => player.name && !player.gwid)) { showErrors(["Every named player must have a GWID."]); return; }
   if (team.players.length > 13) { showErrors(["A team can have 14 players total: the captain plus 13 additional players."]); return; }
   if (await persist()) renderTeamSelector();
 });
+
+$("#teamLogoFile").addEventListener("change", async event => {
+  const file = event.target.files?.[0]; if (!file) return;
+  if (!file.type.startsWith("image/")) { showErrors(["Choose a JPG, PNG, WebP, or GIF image."]); event.target.value = ""; return; }
+  if (file.size > 50 * 1024) { showErrors([`Logo is ${(file.size / 1024).toFixed(1)} KB. Please choose an image of 50 KB or less.`]); event.target.value = ""; return; }
+  const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+  const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
+  $("#logoUploadStatus").textContent = "Uploading…";
+  try { await services.firestoreSdk.setDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id), { teamId:team.id, dataUrl, fileName:file.name, sizeBytes:file.size, updatedAt:new Date().toISOString() }); teamLogos[team.id] = dataUrl; $("#logoUploadStatus").textContent = "Logo uploaded"; renderTeamEditor(); }
+  catch (error) { showErrors(["Logo upload failed. Publish the updated Firestore rules and try again."]); console.error(error); }
+  event.target.value = "";
+});
+$("#removeTeamLogoBtn").addEventListener("click", async () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team || !teamLogos[team.id]) return; await services.firestoreSdk.deleteDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id)); delete teamLogos[team.id]; $("#logoUploadStatus").textContent = "Uploaded logo removed"; renderTeamEditor(); });
 
 $("#newMatchBtn").addEventListener("click", () => { const match = emptyMatch(Math.max(0, ...tournament.matches.map(item => Number(item.number) || 0)) + 1); tournament.matches.push(match); selectedMatchId = match.id; renderMatchSelector(); renderMatchEditor(); });
 $("#matchSelector").addEventListener("change", event => { selectedMatchId = event.target.value; renderMatchEditor(); });

@@ -8,7 +8,7 @@ export const COMMITTEE_SECTIONS = [
 export const createId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 export function emptyTeam(serial) {
-  return { id: `team-${serial}`, serial, name: "", logoUrl: "", captain: { name: "", phone: "", publishPhone: false }, poolId: "", players: [] };
+  return { id: `team-${serial}`, serial, name: "", logoUrl: "", captain: { name: "", gwid: "", phone: "", publishPhone: false }, poolId: "", players: [] };
 }
 
 export function emptyMatch(number = 1) {
@@ -26,14 +26,14 @@ export function emptyMatch(number = 1) {
 export function createDefaultTournament() {
   return {
     schemaVersion: 3,
-    settings: { title: "GWPV Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata" },
+    settings: { title: "GWPV Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata", publishDirectoryPhones: true },
     pools: [], teams: Array.from({ length: 9 }, (_, index) => emptyTeam(index + 1)), matches: [], committees: [],
     updatedAt: new Date().toISOString()
   };
 }
 
 function cleanPlayer(player = {}, index = 0) {
-  return { id: player.id || createId("player"), name: player.name || "", role: player.role || "", phone: player.phone || "", order: Number(player.order) || index + 1 };
+  return { id: player.id || createId("player"), name: player.name || "", gwid: player.gwid || "", role: player.role || "", phone: player.phone || "", order: Number(player.order) || index + 1 };
 }
 
 export function normalizeTournament(raw) {
@@ -53,7 +53,7 @@ export function normalizeTournament(raw) {
     return {
       ...emptyTeam(index + 1), id: source.id || `team-${index + 1}`, serial: Number(source.serial) || index + 1,
       name: source.name || "", logoUrl: source.logoUrl || source.photoUrl || "",
-      captain: { name: captainName, phone: source.captain?.phone || captainPlayer?.phone || "", publishPhone: Boolean(source.captain?.publishPhone) },
+      captain: { name: captainName, gwid: source.captain?.gwid || captainPlayer?.gwid || "", phone: source.captain?.phone || captainPlayer?.phone || "", publishPhone: Boolean(source.captain?.publishPhone) },
       poolId: source.poolId || mappedPool?.id || "",
       players: (source.players || []).filter(player => String(player.name || "").trim().toLowerCase() !== String(captainName || "").trim().toLowerCase()).map(cleanPlayer)
     };
@@ -200,9 +200,15 @@ export function validateTournament(data) {
   const namedTeams = data.teams.filter(team => team.name.trim());
   const names = namedTeams.map(team => team.name.trim().toLowerCase());
   const serials = data.teams.map(team => Number(team.serial));
+  const registeredPeople = data.teams.flatMap(team => team.name.trim() ? [
+    ...(team.captain?.name?.trim() ? [{ name: team.captain.name, gwid: team.captain.gwid }] : []),
+    ...(team.players || []).filter(player => player.name.trim()).map(player => ({ name: player.name, gwid: player.gwid }))
+  ] : []);
+  const gwids = registeredPeople.map(person => String(person.gwid || "").trim().toLowerCase()).filter(Boolean);
   if (new Set(names).size !== names.length) errors.push("Team names must be unique.");
   if (new Set(serials).size !== serials.length) errors.push("Team serial numbers must be unique.");
   if (serials.some(serial => !Number.isInteger(serial) || serial < 1 || serial > 9)) errors.push("Team serial numbers must be from 1 to 9.");
+  if (new Set(gwids).size !== gwids.length) errors.push("Every GWID must be unique across all teams.");
   data.matches.forEach(match => {
     if (match.team1Id && match.team1Id === match.team2Id) errors.push(`Match ${match.number}: choose two different teams.`);
     if (!isValidOvers(match.team1Overs) || !isValidOvers(match.team2Overs)) errors.push(`Match ${match.number}: overs must end in .0 to .5 (for example 4.5, then 5.0).`);

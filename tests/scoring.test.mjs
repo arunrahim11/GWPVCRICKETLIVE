@@ -30,4 +30,8 @@ assert(configurationErrors.some(error => error.includes("powerplay")));
 
 const migrated = normalizeTournament({ teams: [{ name:"Warriors", captain:"Vinod", players:[{name:"VINOD",role:"Captain"},{name:"Yani",role:"Vice Captain"}] }] });
 assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0].players[0].name, "Yani");
+
+const gwidTeams = Array.from({ length:9 }, (_,index) => ({ name:"", serial:index+1, captain:{name:"",gwid:""}, players:[] }));
+gwidTeams[0] = { name:"Warriors", serial:1, captain:{name:"Vinod",gwid:"GWPV001"}, players:[{name:"Yani",gwid:"gwpv001"}] };
+assert(validateTournament({ teams:gwidTeams, matches:[] }).some(error => error.includes("GWID")));
 console.log("Scoring engine tests passed.");

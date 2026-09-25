@@ -6,6 +6,9 @@ A responsive Firebase-powered tournament manager and public live-score website.
 
 - Dashboard with live, upcoming, and completed matches
 - Nine editable team slots, custom pools, captains, and player lists
+- Unique GWID field and duplicate validation for every captain and player
+- Searchable public All Teammates directory with team number and phone
+- Organizer team-logo upload with a strict 50 KB limit
 - Live scoreboard with cricket-over validation and optional detailed scorecards
 - Dedicated ball-by-ball scoring desk with correction and undo
 - Automatic totals, wickets, legal overs, CRR, target, balls remaining, RRR, batter strike rate, and bowler economy
@@ -35,4 +38,4 @@ Each match stores an ordered delivery log for both innings. Published scores are
 
 ## Data and privacy
 
-Published tournament data is stored in `tournaments/gwpv-2026`. Protected player and unpublished captain phone numbers are stored separately in `tournamentPrivate/gwpv-2026`. Firestore rules allow public reads only for the published document and restrict every write plus private-data reads to the configured organizer UID.
+Published tournament data is stored in `tournaments/gwpv-2026`. Protected contacts are also retained in `tournamentPrivate/gwpv-2026`. Uploaded logos use separate `teamLogos/{teamId}` documents so they do not inflate the live-score document. Firestore rules allow public reads for published information and logos while restricting every write plus private-data reads to the configured organizer UID.

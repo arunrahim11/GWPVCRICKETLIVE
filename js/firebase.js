@@ -15,7 +15,8 @@ export async function getFirebaseServices() {
       const auth = authSdk.getAuth(app);
       const tournamentRef = firestoreSdk.doc(db, ...tournamentDocumentPath);
       const privateTournamentRef = firestoreSdk.doc(db, "tournamentPrivate", tournamentDocumentPath[1]);
-      return { app, db, auth, tournamentRef, privateTournamentRef, firestoreSdk, authSdk };
+      const teamLogosRef = firestoreSdk.collection(db, "teamLogos");
+      return { app, db, auth, tournamentRef, privateTournamentRef, teamLogosRef, firestoreSdk, authSdk };
     });
   }
   return servicesPromise;

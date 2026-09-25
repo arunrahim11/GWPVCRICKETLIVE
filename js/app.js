@@ -3,6 +3,7 @@ import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
 let matchFilter = "Live";
+let teamLogos = {}, teammateSearch = "", teammateTeamFilter = "all";
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -24,7 +25,7 @@ function formatDate(date, time = "") {
 }
 function matchPlace(match) { return [pool(match.poolId)?.name || match.stage, match.venue].filter(Boolean).join(" · ") || "Details to be announced"; }
 function badge(status) { return `<span class="match-status status-${esc(status.toLowerCase())}">${esc(status)}</span>`; }
-function logoMarkup(item, className = "team-logo") { return item?.logoUrl ? `<img class="${className}" src="${esc(item.logoUrl)}" alt="${esc(item.name)} logo">` : `<span class="${className} fallback-logo">${esc(item?.name?.slice(0, 2).toUpperCase() || "G")}</span>`; }
+function logoMarkup(item, className = "team-logo") { const source = item ? (teamLogos[item.id] || item.logoUrl) : ""; return source ? `<img class="${className}" src="${esc(source)}" alt="${esc(item.name)} logo">` : `<span class="${className} fallback-logo">${esc(item?.name?.slice(0, 2).toUpperCase() || "G")}</span>`; }
 
 function scoreCard(match, prominent = false) {
   const first = team(match.team1Id), second = team(match.team2Id);
@@ -85,6 +86,19 @@ function renderMatches() {
   $("#matchList").innerHTML = matches.length ? matches.map(fixtureRow).join("") : empty(`No ${matchFilter.toLowerCase()} matches.`);
 }
 
+function renderTeammates() {
+  const teams = tournament.teams.filter(item => item.name.trim()).sort((a,b) => a.serial - b.serial);
+  const filter = $("#teammateTeamFilter");
+  filter.innerHTML = `<option value="all">All teams</option>${teams.map(item => `<option value="${esc(item.id)}">#${item.serial} · ${esc(item.name)}</option>`).join("")}`; filter.value = teammateTeamFilter;
+  const people = teams.flatMap(item => [
+    ...(item.captain.name ? [{ name:item.captain.name, gwid:item.captain.gwid, phone:item.captain.phone, role:"Captain", team:item }] : []),
+    ...item.players.filter(player => player.name.trim()).map(player => ({ ...player, role:player.role || "Player", team:item }))
+  ]);
+  const query = teammateSearch.trim().toLowerCase();
+  const visible = people.filter(person => (teammateTeamFilter === "all" || person.team.id === teammateTeamFilter) && (!query || [person.name,person.gwid,person.team.name,person.team.serial].some(value => String(value || "").toLowerCase().includes(query))));
+  $("#teammateDirectory").innerHTML = visible.length ? visible.map((person,index) => `<tr><td>${index+1}</td><td><div class="directory-person">${logoMarkup(person.team,"directory-logo")}<strong>${esc(person.name)}</strong></div></td><td><span class="gwid-badge">${esc(person.gwid || "Not assigned")}</span></td><td>#${person.team.serial}</td><td>${esc(person.team.name)}</td><td>${esc(person.role)}</td><td>${tournament.settings.publishDirectoryPhones && person.phone ? `<a href="tel:${esc(person.phone)}">${esc(person.phone)}</a>` : `<span class="muted">Private</span>`}</td></tr>`).join("") : `<tr><td colspan="7"><div class="empty-state compact"><p>No teammates found.</p></div></td></tr>`;
+}
+
 function renderCommittee() {
   $("#committeeContent").innerHTML = COMMITTEE_SECTIONS.map(section => {
     const members = tournament.committees.filter(member => member.section === section.value).sort((a,b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0));
@@ -94,8 +108,8 @@ function renderCommittee() {
 
 function openTeam(id) {
   const item = team(id); if (!item) return;
-  const rows = [{ name: item.captain.name || "Captain not entered", role: "Captain", isCaptain: true }, ...item.players.filter(player => player.name.trim())];
-  $("#teamDialogContent").innerHTML = `<div class="dialog-team-head">${logoMarkup(item)}<div><p class="eyebrow">TEAM #${item.serial}</p><h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p></div></div><div class="player-list">${rows.map((player, index) => `<div><span>${index + 1}</span><strong>${esc(player.name)}</strong><em>${esc(player.isCaptain ? "Captain" : player.role || "Player")}</em></div>`).join("")}</div>`;
+  const rows = [{ name: item.captain.name || "Captain not entered", gwid:item.captain.gwid, role: "Captain", isCaptain: true }, ...item.players.filter(player => player.name.trim())];
+  $("#teamDialogContent").innerHTML = `<div class="dialog-team-head">${logoMarkup(item)}<div><p class="eyebrow">TEAM #${item.serial}</p><h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p></div></div><div class="player-list">${rows.map((player, index) => `<div><span>${index + 1}</span><strong>${esc(player.name)}</strong><i>${esc(player.gwid || "GWID pending")}</i><em>${esc(player.isCaptain ? "Captain" : player.role || "Player")}</em></div>`).join("")}</div>`;
   $("#teamDialog").showModal();
 }
 
@@ -127,19 +141,21 @@ function openScore(id) {
   $("#scoreDialog").dataset.matchId = match.id; $("#scoreDialog").showModal();
 }
 
-function renderAll() { renderDashboard(); renderTeams(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
+function renderAll() { renderDashboard(); renderTeams(); renderTeammates(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
 function bindDynamicButtons() {
   $$('[data-score-id]').forEach(button => button.onclick = () => openScore(button.dataset.scoreId));
 }
 
 function route(name) {
-  const valid = ["dashboard", "teams", "matches", "committee"].includes(name) ? name : "dashboard";
+  const valid = ["dashboard", "teams", "teammates", "matches", "committee"].includes(name) ? name : "dashboard";
   $$(".page-section").forEach(section => section.classList.toggle("active", section.id === valid));
   $$('[data-route]').forEach(button => button.classList.toggle("active", button.dataset.route === valid));
   history.replaceState(null, "", `#${valid}`); window.scrollTo({ top: 0, behavior: "smooth" });
 }
 $$('[data-route]').forEach(button => button.addEventListener("click", event => { if (button.tagName === "BUTTON") event.preventDefault(); route(button.dataset.route); }));
 $$('[data-match-filter]').forEach(button => button.addEventListener("click", () => { matchFilter = button.dataset.matchFilter; $$('[data-match-filter]').forEach(item => item.classList.toggle("active", item === button)); renderMatches(); bindDynamicButtons(); }));
+$("#teammateSearch").addEventListener("input", event => { teammateSearch = event.target.value; renderTeammates(); });
+$("#teammateTeamFilter").addEventListener("change", event => { teammateTeamFilter = event.target.value; renderTeammates(); });
 $$('.dialog-close').forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
 $$('dialog').forEach(dialog => dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); }));
 
@@ -151,6 +167,7 @@ async function boot() {
     tournament = normalizeTournament(snapshot.exists() ? snapshot.data() : null); renderAll();
     $("#connectionBadge").innerHTML = "<span></span> Live"; $("#connectionBadge").className = "status-pill saved";
   }, error => { $("#connectionBadge").innerHTML = "<span></span> Offline"; console.error(error); });
+  services.firestoreSdk.onSnapshot(services.teamLogosRef, snapshot => { teamLogos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url)); renderAll(); }, console.error);
 }
 boot().catch(console.error);
 setInterval(() => {
