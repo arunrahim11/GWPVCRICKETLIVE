@@ -39,17 +39,18 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 3. **Pools:** create and name any number of pools, then save.
 4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, optional logo URL, assign a pool, and add up to 13 other players. The captain is always displayed first, making 14 players total.
 5. Check **Publish captain’s phone number** only when that captain’s contact should be public. Player phones and unpublished captain numbers remain organizer-only.
-6. **Matches:** select **New match**, choose registered teams, schedule in IST, and save.
+6. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save.
 7. **Committee:** add main committee, organizing team, and volunteers/supporting members.
 
 ## 5. Update live scores
 
-1. Open **Matches** and select the match.
-2. Change status to **Live**.
-3. Enter runs, wickets, overs, current innings, batting team, and target where applicable.
-4. Save after each update. Public viewers receive the update automatically and see the last-updated time.
-5. Cricket overs must end in `.0` through `.5`. After `4.5`, the next completed legal ball is `5.0`.
-6. At the end, set status to **Completed**, enter the result and optional Player of the Match/scorecards, then save.
+1. Open **Live Scoring**, select the scheduled match, and press **Start match**.
+2. Select the striker, non-striker, and bowler. Use the quick `0, 1, 2, 3, 4, 6` buttons or select an extra/wicket and add the delivery.
+3. Wides and no-balls do not consume a legal ball. The website automatically calculates score, wickets, overs, CRR, player figures, over summaries, and powerplay status.
+4. Use **Edit**, **Delete**, or **Undo last** to correct scoring errors. Every correction recalculates the complete innings.
+5. After the first innings, press **Start 2nd innings**. The target, runs required, balls remaining, and required run rate are calculated automatically.
+6. Add optional commentary to any delivery. Public viewers receive updates in real time.
+7. At the end, enter the result in **Matches**, then press **Complete match** in Live Scoring. The actual match duration is saved and displayed.
 
 ## Troubleshooting
 

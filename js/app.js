@@ -1,4 +1,4 @@
-import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS } from "./data.js";
+import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, getMatchScore, getMatchTiming, calculateInnings } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
@@ -29,21 +29,21 @@ function logoMarkup(item, className = "team-logo") { return item?.logoUrl ? `<im
 function scoreCard(match, prominent = false) {
   const first = team(match.team1Id), second = team(match.team2Id);
   const batting = teamName(match.battingTeamId);
-  const target = Number(match.target);
-  const battingRuns = match.battingTeamId === match.team1Id ? Number(match.team1Runs || 0) : Number(match.team2Runs || 0);
-  const required = target > 0 ? Math.max(target - battingRuns, 0) : null;
+  const matchScore = getMatchScore(match), activeCalc = Number(match.innings) === 2 ? matchScore.calc2 : matchScore.calc1;
+  const required = matchScore.runsRequired;
+  const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
   return `<article class="match-card ${prominent ? "live-card" : ""}">
-    <div class="match-card-head"><span>Match ${esc(match.number)}</span>${badge(match.status)}</div>
+    <div class="match-card-head"><span>Match ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} overs</span><div>${powerplay ? '<span class="powerplay-badge">POWERPLAY</span>' : ""}${badge(match.status)}</div></div>
     <div class="versus-score"><div>${logoMarkup(first, "score-logo")}<strong>${esc(teamName(match.team1Id))}</strong><b>${esc(score(match, "team1"))}</b></div><span>VS</span><div>${logoMarkup(second, "score-logo")}<strong>${esc(teamName(match.team2Id))}</strong><b>${esc(score(match, "team2"))}</b></div></div>
     <p class="match-meta">${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p>
-    ${match.status === "Live" ? `<p class="live-detail">Innings ${esc(match.innings)}${match.battingTeamId ? ` · ${esc(batting)} batting` : ""}${required != null ? ` · ${required} run${required === 1 ? "" : "s"} required` : ""}</p>` : ""}
+    ${match.status === "Live" ? `<div class="live-metrics"><span>Innings ${esc(match.innings)}</span>${match.battingTeamId ? `<span>${esc(batting)} batting</span>` : ""}${activeCalc ? `<span>CRR ${activeCalc.runRate.toFixed(2)}</span>` : ""}${required != null ? `<span>Need ${required} from ${matchScore.ballsRemaining}</span>${matchScore.requiredRunRate != null ? `<span>RRR ${matchScore.requiredRunRate.toFixed(2)}</span>` : ""}` : ""}</div>` : ""}
     ${match.result ? `<p class="result-line">${esc(match.result)}</p>` : ""}
     <button class="secondary-btn" data-score-id="${esc(match.id)}">View Scoreboard</button>
   </article>`;
 }
 
 function fixtureRow(match) {
-  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))}</p><p>${esc(matchPlace(match))}</p>${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
+  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))}</p><p>${esc(matchPlace(match))} · ${esc(match.oversPerInnings || 10)} overs · Powerplay ${esc(match.powerplayOvers || 0)} overs</p>${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
 }
 
 function renderDashboard() {
@@ -103,10 +103,28 @@ function scoreTable(title, rows, columns) {
   if (!rows?.length) return "";
   return `<section class="score-table"><h3>${esc(title)}</h3><div class="table-scroll"><table><thead><tr>${columns.map(column => `<th>${esc(column.label)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${columns.map(column => `<td>${esc(row[column.key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div></section>`;
 }
+function eventToken(event) {
+  if (event.wicket && event.dismissalType !== "retired-hurt") return "W";
+  if (event.extraType === "wide") return `${event.totalRuns || 1}Wd`;
+  if (event.extraType === "no-ball") return `${event.totalRuns || 1}Nb`;
+  if (event.extraType === "bye") return `${event.totalRuns}B`;
+  if (event.extraType === "leg-bye") return `${event.totalRuns}Lb`;
+  if (event.extraType === "dead-ball") return "Db";
+  return String(event.totalRuns || 0);
+}
+function inningsPanel(match, innings) {
+  if (!innings) return "";
+  const calc = calculateInnings(innings, match.powerplayOvers);
+  const battingTable = calc.battingStats.length ? `<div class="auto-score-table"><h4>Batting</h4><div class="table-scroll"><table><thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead><tbody>${calc.battingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong><small>${esc(item.dismissal)}</small></td><td>${item.runs}</td><td>${item.balls}</td><td>${item.fours}</td><td>${item.sixes}</td><td>${item.strikeRate.toFixed(1)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+  const bowlingTable = calc.bowlingStats.length ? `<div class="auto-score-table"><h4>Bowling</h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td>${item.overs}</td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+  return `<section class="innings-panel"><div class="innings-heading"><div><span>${Number(innings.number) === 1 ? "1st" : "2nd"} innings</span><h3>${esc(teamName(innings.battingTeamId))}</h3></div><strong>${calc.runs}/${calc.wickets} <small>${calc.overs} ov</small></strong></div><div class="innings-rates"><span>Run rate <b>${calc.runRate.toFixed(2)}</b></span><span>Powerplay <b>${esc(match.powerplayOvers || 0)} overs</b></span></div><div class="over-strip">${calc.overGroups.length ? calc.overGroups.map(over => `<div class="over-block ${over.powerplay ? "powerplay-over" : ""}"><span>Over ${over.number}${over.powerplay ? " · PP" : ""}</span><div>${over.events.map(event => `<b title="${esc(event.commentary || "Delivery")}">${esc(eventToken(event))}</b>`).join("")}</div><small>${over.runs} runs${over.wickets ? ` · ${over.wickets}W` : ""}</small></div>`).join("") : `<p class="muted">Ball-by-ball scoring has not started.</p>`}</div>${battingTable}${bowlingTable}${calc.events.length ? `<div class="commentary-feed"><h4>Ball-by-ball</h4>${calc.events.slice().reverse().map(event => `<div class="commentary-row ${event.powerplay ? "powerplay-delivery" : ""}"><span>${esc(event.label)}</span><strong>${esc(eventToken(event))}</strong><p>${esc(event.commentary || `${event.bowler || "Bowler"} to ${event.batter || "Batter"}`)}</p></div>`).join("")}</div>` : ""}</section>`;
+}
 function openScore(id) {
   const match = tournament.matches.find(item => item.id === id); if (!match) return;
-  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)}</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2>${badge(match.status)}<p>${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p></div>${scoreCard(match)}${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}${!match.battingScorecard?.length && !match.bowlingScorecard?.length ? empty("Detailed scorecard has not been entered.") : ""}`;
-  $("#scoreDialog").showModal();
+  const matchScore = getMatchScore(match), timing = getMatchTiming(match), activeCalc = Number(match.innings) === 2 ? matchScore.calc2 : matchScore.calc1;
+  const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
+  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p></div><div class="broadcast-score">${scoreCard(match)}<div class="match-clock"><div><span>Elapsed</span><strong id="elapsedClock">${esc(timing.durationText)}</strong></div><div><span>${match.actualEnd ? "Finished" : "Estimated finish"}</span><strong id="finishClock">${timing.estimatedEnd ? new Intl.DateTimeFormat("en-IN", {hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(new Date(timing.estimatedEnd)) : "—"}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
+  $("#scoreDialog").dataset.matchId = match.id; $("#scoreDialog").showModal();
 }
 
 function renderAll() { renderDashboard(); renderTeams(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
@@ -135,3 +153,9 @@ async function boot() {
   }, error => { $("#connectionBadge").innerHTML = "<span></span> Offline"; console.error(error); });
 }
 boot().catch(console.error);
+setInterval(() => {
+  const dialog = $("#scoreDialog"), match = tournament.matches.find(item => item.id === dialog.dataset.matchId); if (!dialog.open || !match) return;
+  const timing = getMatchTiming(match); const elapsed = $("#elapsedClock"), finish = $("#finishClock");
+  if (elapsed) elapsed.textContent = timing.durationText;
+  if (finish) finish.textContent = timing.estimatedEnd ? new Intl.DateTimeFormat("en-IN", {hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(new Date(timing.estimatedEnd)) : "—";
+}, 30000);
