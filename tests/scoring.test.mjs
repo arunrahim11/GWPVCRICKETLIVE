@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament, normalizeTournament } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -27,4 +27,7 @@ match.targetOverride = 20; syncMatchSummary(match); assert.equal(getMatchScore(m
 
 const configurationErrors = validateTournament({ teams: Array.from({ length: 9 }, (_, index) => ({ name: "", serial: index + 1 })), matches: [{ ...match, powerplayOvers: 3, oversPerInnings: 2 }] });
 assert(configurationErrors.some(error => error.includes("powerplay")));
+
+const migrated = normalizeTournament({ teams: [{ name:"Warriors", captain:"Vinod", players:[{name:"VINOD",role:"Captain"},{name:"Yani",role:"Vice Captain"}] }] });
+assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0].players[0].name, "Yani");
 console.log("Scoring engine tests passed.");

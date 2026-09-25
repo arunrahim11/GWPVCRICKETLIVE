@@ -73,7 +73,10 @@ function renderTeamEditor() {
   const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
   fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainPhone: team.captain.phone, publishPhone: team.captain.publishPhone });
   $("#teamForm").elements.poolId.innerHTML = poolOptions(team.poolId);
-  $("#playerEditor").innerHTML = team.players.map((player, index) => playerRow(player, index)).join("") || `<tr class="empty-row"><td colspan="5">No additional players added.</td></tr>`;
+  const captainRow = `<tr class="captain-admin-row"><td>1</td><td><input value="${attr(team.captain.name || "Enter captain above")}" disabled></td><td><input value="Captain" disabled></td><td><input value="${attr(team.captain.phone || "")}" disabled></td><td><span class="captain-lock">Captain</span></td></tr>`;
+  const additionalRows = team.players.map((player, index) => playerRow(player, index)).join("");
+  $("#playerEditor").innerHTML = captainRow + (additionalRows || `<tr class="empty-row"><td colspan="5">No additional players added.</td></tr>`);
+  $("#addPlayerBtn").disabled = team.players.length >= 13;
 }
 function playerRow(player, index) { return `<tr data-player-id="${attr(player.id)}"><td>${index + 2}</td><td><input name="playerName" value="${attr(player.name)}"></td><td><input name="playerRole" value="${attr(player.role)}" placeholder="Batter, bowler…"></td><td><input name="playerPhone" type="tel" value="${attr(player.phone)}"></td><td><button class="icon-danger remove-player" type="button" aria-label="Remove player">×</button></td></tr>`; }
 
@@ -167,14 +170,15 @@ $("#poolEditor").addEventListener("click", event => { const button = event.targe
 $("#savePoolsBtn").addEventListener("click", async () => { tournament.pools = $$("#poolEditor [data-pool-id]").map((row, index) => ({ id: row.dataset.poolId, name: row.querySelector('[name="name"]').value.trim(), displayOrder: Number(row.querySelector('[name="displayOrder"]').value) || index + 1 })); if (tournament.pools.some(pool => !pool.name)) { showErrors(["Every pool needs a name."]); return; } const names = tournament.pools.map(pool => pool.name.toLowerCase()); if (new Set(names).size !== names.length) { showErrors(["Pool names must be unique."]); return; } await persist(); });
 
 $("#teamSelector").addEventListener("change", event => { selectedTeamId = event.target.value; renderTeamEditor(); });
-$("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); team.players.push({ id: createId("player"), name: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });
+$("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (team.players.length >= 13) { showErrors(["This team already has 14 players: one captain and 13 additional players."]); return; } team.players.push({ id: createId("player"), name: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });
 $("#playerEditor").addEventListener("click", event => { const button = event.target.closest(".remove-player"); if (!button) return; const id = button.closest("tr").dataset.playerId; const team = tournament.teams.find(item => item.id === selectedTeamId); team.players = team.players.filter(player => player.id !== id); renderTeamEditor(); });
 $("#teamForm").addEventListener("submit", async event => {
   event.preventDefault(); const form = event.currentTarget, values = formObject(form); const team = tournament.teams.find(item => item.id === selectedTeamId);
   Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), phone: values.captainPhone.trim(), publishPhone: form.elements.publishPhone.checked } });
-  team.players = $$("#playerEditor tr[data-player-id]").map((row, index) => ({ id: row.dataset.playerId, name: row.querySelector('[name="playerName"]').value.trim(), role: row.querySelector('[name="playerRole"]').value.trim(), phone: row.querySelector('[name="playerPhone"]').value.trim(), order: index + 1 })).filter(player => player.name || player.role || player.phone);
+  const captainKey = team.captain.name.trim().toLowerCase();
+  team.players = $$("#playerEditor tr[data-player-id]").map((row, index) => ({ id: row.dataset.playerId, name: row.querySelector('[name="playerName"]').value.trim(), role: row.querySelector('[name="playerRole"]').value.trim(), phone: row.querySelector('[name="playerPhone"]').value.trim(), order: index + 1 })).filter(player => (player.name || player.role || player.phone) && (!captainKey || player.name.toLowerCase() !== captainKey));
   if (team.name && !team.captain.name) { showErrors(["Enter the captain’s name for this registered team."]); return; }
-  if (team.players.length > 13) { showErrors(["A team can have up to 14 players including the captain."]); return; }
+  if (team.players.length > 13) { showErrors(["A team can have 14 players total: the captain plus 13 additional players."]); return; }
   if (await persist()) renderTeamSelector();
 });
 

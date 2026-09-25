@@ -55,7 +55,7 @@ export function normalizeTournament(raw) {
       name: source.name || "", logoUrl: source.logoUrl || source.photoUrl || "",
       captain: { name: captainName, phone: source.captain?.phone || captainPlayer?.phone || "", publishPhone: Boolean(source.captain?.publishPhone) },
       poolId: source.poolId || mappedPool?.id || "",
-      players: (source.players || []).filter(player => player.name !== captainName).map(cleanPlayer)
+      players: (source.players || []).filter(player => String(player.name || "").trim().toLowerCase() !== String(captainName || "").trim().toLowerCase()).map(cleanPlayer)
     };
   });
   const matches = (raw.matches || []).map((match, index) => ({
