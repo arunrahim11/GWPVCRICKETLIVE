@@ -4,14 +4,14 @@ The Firebase web configuration and organizer UID are already included. This stat
 
 ## 1. Deploy the updated Firestore rules
 
-This step is required because protected phone numbers use a private organizer-only document and uploaded logos use separate public logo documents.
+This step is required because the site uses an organizer-only contact backup and uploaded logos use separate public logo documents.
 
 1. Open Firebase Console → **Firestore Database → Rules**.
 2. Open `firestore.rules` from this project and copy the complete contents.
 3. Replace the rules in Firebase and select **Publish**.
 4. Confirm that the organizer UID is `GHIfihuSOTTuUTriH6Jcb12ijZh2`.
 
-Public visitors can read `tournaments/gwpv-2026`. Only the organizer can write it or read/write `tournamentPrivate/gwpv-2026`.
+Public visitors can read `tournaments/gwpv-2026`, including the captain and player phone numbers shown in All Teammates. Only the organizer can write it or read/write the contact backup in `tournamentPrivate/gwpv-2026`.
 
 ## 2. Confirm organizer login
 
@@ -37,11 +37,13 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 1. Sign in on `admin.html`. If the database is empty, select **Initialize tournament**.
 2. **Settings:** enter the editable tournament name, venue, dates, and announcement.
 3. **Pools:** create and name any number of pools, then save.
-4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, captain GWID, optional logo URL, assign a pool, and add up to 13 other players. Enter a unique GWID for every player. The captain is always displayed first, making 14 players total.
-5. Upload a JPG, PNG, WebP, or GIF team logo directly in the team editor. The file must be 50 KB or smaller. The logo appears on team cards, live scores, match scoreboards, and the player directory.
-6. In **Settings**, use **Show player phone numbers in the public All Teammates directory** to control directory phone visibility.
-7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save.
+4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, captain GWID, optional logo URL, assign a pool, and add up to 13 other players. Enter a unique GWID for every player. The captain is always displayed first, making 14 players total. Use **Import Word-list phone numbers** to apply the provided 2026 phone list by GWID, with unique-name matching only for the three roster entries whose GWID differs from the numbered list; confirm to publish those numbers in All Teammates.
+5. Upload a JPG, PNG, WebP, or GIF team logo directly in the team editor. The file must be 100 KB or smaller. The logo appears on team cards, live scores, match scoreboards, and the player directory.
+6. Captain and player phone numbers are displayed in the public All Teammates directory.
+7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save. The public match cards and scoreboards show these settings in bold. The match clock starts when live scoring starts, counts elapsed time and remaining time from the configured duration (90 minutes by default), and displays the scheduled and actual start times.
 8. **Committee:** add main committee, organizing team, and volunteers/supporting members.
+
+To create the fixture chart shown in the tournament schedule, open **Matches** and select **Create chart schedule**. Confirm to publish the PDF's 16 ordered pool matches, two semifinals, and final with the listed team assignments, dates, and IST start times. The knockout schedule is set to 2 Oct 2026 (Day 04), following the three pool days; semifinals are 10 overs and the final is 12 overs. Team-wise fixtures and Pool A rest rounds appear under **Teams & Pools**. Match scores and results are preserved, and a progressed match cannot be reassigned to different teams.
 
 ## 5. Update live scores
 
@@ -55,9 +57,10 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 
 ## Troubleshooting
 
+- **Logo upload denied:** publish the included `firestore.rules` in Firebase Console and confirm the signed-in organizer UID matches the UID in the rules.
 - **Missing or insufficient permissions:** republish the included `firestore.rules` and confirm the UID.
 - **Private data blocked:** the updated rules have not been deployed yet.
 - **Organizer cannot sign in:** enable Email/Password and confirm the user exists.
 - **Login works locally but not on GitHub:** add `arunrahim11.github.io` to Authorized domains.
 - **GitHub page is 404:** check the latest workflow in the Actions tab and the Pages source.
-- **Old phone numbers exist in the public document:** after deploying rules, sign in and save any admin section once. The site migrates phone fields into the private document and removes private numbers from the public document.
+- **Phone numbers are missing from the public directory:** sign in to the admin site and save any admin section once. The site restores contact details from the organizer-only backup and publishes them in the public tournament document.

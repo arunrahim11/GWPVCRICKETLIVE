@@ -12,13 +12,13 @@ service cloud.firestore {
     }
 
     match /tournamentPrivate/gwpv-2026 {
-      // Unpublished captain contacts and all player phone numbers stay private.
+      // Organizer-only contact backup and legacy migration data.
       allow read, create, update, delete: if request.auth != null
         && request.auth.uid == "GHIfihuSOTTuUTriH6Jcb12ijZh2";
     }
 
     match /teamLogos/{teamId} {
-      // Small public team logos; only the organizer can upload or replace them.
+      // Public team logos; only the organizer can upload or replace them.
       allow read: if true;
       allow create, update, delete: if request.auth != null
         && request.auth.uid == "GHIfihuSOTTuUTriH6Jcb12ijZh2";

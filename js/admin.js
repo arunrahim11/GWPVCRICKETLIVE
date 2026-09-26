@@ -1,5 +1,29 @@
-import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration } from "./data.js";
+import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration, updatePhonesByGwid, createChartSchedule } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
+
+const wordListPhonesByGwid = {
+  "653":"9966748916","232":"9390193904","730":"8801874432","420":"9912782827","726":"9849146562",
+  "417":"9848323362","717":"7674873574","179":"9912432189","441":"9700600837","177":"9989836653",
+  "481":"8466931680","549":"9505003040","578":"7036122219","565":"9849317331","445":"6303855745",
+  "667":"9849570221","689":"9866003665","461":"7093534645","691":"9908630488","705":"9573100998",
+  "067":"8686269020","231":"9848046949","218":"9885560818","381":"7337451420","602":"7416542300",
+  "150":"9849510350","719":"9533451522","627":"9493041041","663":"8897388208","433":"8976158790",
+  "210":"8464090274","029":"7303339680","305":"9393502053","452":"7799465758","206":"9866700655",
+  "040":"9848522507","483":"9553519315","416":"9154915451","415":"8179217806","125":"9848979420",
+  "236":"9866561176","282":"9000717247","080":"9502487715","740":"9949426355","247":"9701198288",
+  "180":"9959203644","572":"9177216248","736":"9849079785","408":"8523011255","205":"8328350020",
+  "439":"9550740671","204":"9494282164","310":"9849189045","732":"9676757474","203":"8143430604",
+  "693":"8886411173","598":"9948057285","176":"9177937943","551":"9505587750","605":"9676294673",
+  "589":"9177553020","018":"9908335802","552":"9704151229","569":"9848974098","563":"9391612833",
+  "576":"8341159705","459":"8074641296","455":"9542215321","211":"9966734522","066":"8106542126",
+  "611":"9949370694","685":"9989641051","541":"9000237002","583":"9394765699","112":"9866769836",
+  "209":"8919074413","212":"9390015333","226":"9603121306"
+};
+const wordListNameMatchesByGwid = {
+  "310":["Vamshi Krishna"],
+  "565":["B. Sambhashivudu"],
+  "598":["A. Vijay"]
+};
 
 let services, tournament, unsubscribe, unsubscribePrivate, publicSnapshot, privateSnapshot = { teams: [] };
 let selectedTeamId = "team-1", selectedMatchId = "", selectedScoreMatchId = "", selectedMemberId = "", selectedInningsNumber = 1;
@@ -13,9 +37,12 @@ function setSaveState(label, kind = "") { const el = $("#saveState"); el.innerHT
 function showErrors(errors) { const el = $("#validationBanner"); el.innerHTML = errors.map(error => `<p>${esc(error)}</p>`).join(""); el.classList.toggle("hidden", !errors.length); if (errors.length) el.scrollIntoView({ behavior: "smooth", block: "center" }); }
 function formObject(form) { return Object.fromEntries(new FormData(form).entries()); }
 function fillForm(form, values) { Object.entries(values || {}).forEach(([key, value]) => { const field = form.elements.namedItem(key); if (!field) return; if (field.type === "checkbox") field.checked = Boolean(value); else field.value = value ?? ""; }); }
-function teamName(id) { return tournament?.teams.find(team => team.id === id)?.name || `Team slot ${tournament?.teams.find(team => team.id === id)?.serial || ""}`.trim(); }
+function teamName(id) {
+  const placeholders = { "TBD-A1":"Pool A winner", "TBD-A2":"Pool A runner-up", "TBD-B1":"Pool B winner", "TBD-B2":"Pool B runner-up", "TBD-SF1":"Semi-final 1 winner", "TBD-SF2":"Semi-final 2 winner" };
+  return tournament?.teams.find(team => team.id === id)?.name || placeholders[id] || `Team slot ${tournament?.teams.find(team => team.id === id)?.serial || ""}`.trim();
+}
 function poolOptions(selected = "") { return `<option value="">Not assigned</option>${tournament.pools.sort((a,b) => a.displayOrder - b.displayOrder).map(pool => `<option value="${attr(pool.id)}" ${pool.id === selected ? "selected" : ""}>${esc(pool.name)}</option>`).join("")}`; }
-function teamOptions(selected = "", includeBlank = true) { return `${includeBlank ? '<option value="">Select a team</option>' : ""}${tournament.teams.filter(team => team.name.trim()).sort((a,b) => a.serial - b.serial).map(team => `<option value="${attr(team.id)}" ${team.id === selected ? "selected" : ""}>#${team.serial} · ${esc(team.name)}</option>`).join("")}`; }
+function teamOptions(selected = "", includeBlank = true) { const placeholders = { "TBD-A1":"Pool A winner", "TBD-A2":"Pool A runner-up", "TBD-B1":"Pool B winner", "TBD-B2":"Pool B runner-up", "TBD-SF1":"Semi-final 1 winner", "TBD-SF2":"Semi-final 2 winner" }; const pending = placeholders[selected] ? `<option value="${attr(selected)}" selected>${esc(placeholders[selected])}</option>` : ""; return `${includeBlank ? '<option value="">Select a team</option>' : ""}${pending}${tournament.teams.filter(team => team.name.trim()).sort((a,b) => a.serial - b.serial).map(team => `<option value="${attr(team.id)}" ${team.id === selected ? "selected" : ""}>#${team.serial} · ${esc(team.name)}</option>`).join("")}`; }
 
 async function persist(success = "Saved live") {
   const errors = validateTournament(tournament); showErrors(errors); if (errors.length) return false;
@@ -23,7 +50,6 @@ async function persist(success = "Saved live") {
   try {
     const privateData = { teams: tournament.teams.map(team => ({ id: team.id, captainPhone: team.captain.phone || "", playerPhones: Object.fromEntries(team.players.map(player => [player.id, player.phone || ""])) })), updatedAt: tournament.updatedAt };
     const publicData = structuredClone(tournament);
-    publicData.teams.forEach(team => { if (!team.captain.publishPhone && !publicData.settings.publishDirectoryPhones) team.captain.phone = ""; if (!publicData.settings.publishDirectoryPhones) team.players.forEach(player => { player.phone = ""; }); });
     await services.firestoreSdk.setDoc(services.privateTournamentRef, privateData);
     await services.firestoreSdk.setDoc(services.tournamentRef, publicData);
     setSaveState(success, "saved"); setTimeout(() => setSaveState("Ready"), 2200); return true;
@@ -73,7 +99,7 @@ function renderTeamSelector() {
 }
 function renderTeamEditor() {
   const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
-  fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainGwid: team.captain.gwid, captainPhone: team.captain.phone, publishPhone: team.captain.publishPhone });
+  fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainGwid: team.captain.gwid, captainPhone: team.captain.phone });
   $("#teamForm").elements.poolId.innerHTML = poolOptions(team.poolId);
   const captainRow = `<tr class="captain-admin-row"><td>1</td><td><input value="${attr(team.captain.name || "Enter captain above")}" disabled></td><td><input value="${attr(team.captain.gwid || "Enter GWID above")}" disabled></td><td><input value="Captain" disabled></td><td><input value="${attr(team.captain.phone || "")}" disabled></td><td><span class="captain-lock">Captain</span></td></tr>`;
   const additionalRows = team.players.map((player, index) => playerRow(player, index)).join("");
@@ -168,18 +194,26 @@ function parseScorecard(text, keys) {
 $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginError").textContent = ""; try { await services.authSdk.signInWithEmailAndPassword(services.auth, $("#loginEmail").value.trim(), $("#loginPassword").value); } catch (error) { $("#loginError").textContent = "Sign-in failed. Check the email, password, and Firebase Authentication setup."; console.error(error); } });
 $("#signOutBtn").addEventListener("click", () => services.authSdk.signOut(services.auth));
 $("#initializeBtn").addEventListener("click", async () => { tournament = createDefaultTournament(); await persist("Tournament initialized"); });
-$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); tournament.settings = { ...tournament.settings, ...formObject(event.currentTarget), publishDirectoryPhones: event.currentTarget.elements.publishDirectoryPhones.checked, timezone: "Asia/Kolkata" }; await persist(); });
+$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); tournament.settings = { ...tournament.settings, ...formObject(event.currentTarget), timezone: "Asia/Kolkata" }; await persist(); });
 
 $("#addPoolBtn").addEventListener("click", () => { tournament.pools.push({ id: createId("pool"), name: "", displayOrder: tournament.pools.length + 1 }); renderPools(); });
 $("#poolEditor").addEventListener("click", event => { const button = event.target.closest(".remove-pool"); if (!button) return; const id = button.closest("[data-pool-id]").dataset.poolId; if (tournament.teams.some(team => team.poolId === id) || tournament.matches.some(match => match.poolId === id)) { showErrors(["This pool is assigned to a team or match. Reassign it before removing the pool."]); return; } tournament.pools = tournament.pools.filter(pool => pool.id !== id); renderPools(); });
 $("#savePoolsBtn").addEventListener("click", async () => { tournament.pools = $$("#poolEditor [data-pool-id]").map((row, index) => ({ id: row.dataset.poolId, name: row.querySelector('[name="name"]').value.trim(), displayOrder: Number(row.querySelector('[name="displayOrder"]').value) || index + 1 })); if (tournament.pools.some(pool => !pool.name)) { showErrors(["Every pool needs a name."]); return; } const names = tournament.pools.map(pool => pool.name.toLowerCase()); if (new Set(names).size !== names.length) { showErrors(["Pool names must be unique."]); return; } await persist(); });
 
 $("#teamSelector").addEventListener("change", event => { selectedTeamId = event.target.value; renderTeamEditor(); });
+$("#importDirectoryPhonesBtn").addEventListener("click", async () => {
+  const preview = structuredClone(tournament.teams);
+  const matched = updatePhonesByGwid(preview, wordListPhonesByGwid, wordListNameMatchesByGwid);
+  if (!matched) { showErrors(["No players in the current roster match the Word-list IDs."]); return; }
+  if (!confirm(`Publish phone numbers for ${matched} players matched by GWID or a unique name from the numbered list? These numbers will be visible in the public All Teammates directory.`)) return;
+  const updated = updatePhonesByGwid(tournament.teams, wordListPhonesByGwid, wordListNameMatchesByGwid);
+  if (await persist(`${updated} directory phone numbers published`)) renderTeamEditor();
+});
 $("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (team.players.length >= 13) { showErrors(["This team already has 14 players: one captain and 13 additional players."]); return; } team.players.push({ id: createId("player"), name: "", gwid: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });
 $("#playerEditor").addEventListener("click", event => { const button = event.target.closest(".remove-player"); if (!button) return; const id = button.closest("tr").dataset.playerId; const team = tournament.teams.find(item => item.id === selectedTeamId); team.players = team.players.filter(player => player.id !== id); renderTeamEditor(); });
 $("#teamForm").addEventListener("submit", async event => {
   event.preventDefault(); const form = event.currentTarget, values = formObject(form); const team = tournament.teams.find(item => item.id === selectedTeamId);
-  Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), gwid: values.captainGwid.trim(), phone: values.captainPhone.trim(), publishPhone: form.elements.publishPhone.checked } });
+  Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), gwid: values.captainGwid.trim(), phone: values.captainPhone.trim() } });
   const captainKey = team.captain.name.trim().toLowerCase();
   team.players = $$("#playerEditor tr[data-player-id]").map((row, index) => ({ id: row.dataset.playerId, name: row.querySelector('[name="playerName"]').value.trim(), gwid: row.querySelector('[name="playerGwid"]').value.trim(), role: row.querySelector('[name="playerRole"]').value.trim(), phone: row.querySelector('[name="playerPhone"]').value.trim(), order: index + 1 })).filter(player => (player.name || player.gwid || player.role || player.phone) && (!captainKey || player.name.toLowerCase() !== captainKey));
   if (team.name && !team.captain.name) { showErrors(["Enter the captain’s name for this registered team."]); return; }
@@ -192,17 +226,36 @@ $("#teamForm").addEventListener("submit", async event => {
 $("#teamLogoFile").addEventListener("change", async event => {
   const file = event.target.files?.[0]; if (!file) return;
   if (!file.type.startsWith("image/")) { showErrors(["Choose a JPG, PNG, WebP, or GIF image."]); event.target.value = ""; return; }
-  if (file.size > 50 * 1024) { showErrors([`Logo is ${(file.size / 1024).toFixed(1)} KB. Please choose an image of 50 KB or less.`]); event.target.value = ""; return; }
+  if (file.size > 100 * 1024) { showErrors([`Logo is ${(file.size / 1024).toFixed(1)} KB. Please choose an image of 100 KB or less.`]); event.target.value = ""; return; }
   const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
   const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
   $("#logoUploadStatus").textContent = "Uploading…";
   try { await services.firestoreSdk.setDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id), { teamId:team.id, dataUrl, fileName:file.name, sizeBytes:file.size, updatedAt:new Date().toISOString() }); teamLogos[team.id] = dataUrl; $("#logoUploadStatus").textContent = "Logo uploaded"; renderTeamEditor(); }
-  catch (error) { showErrors(["Logo upload failed. Publish the updated Firestore rules and try again."]); console.error(error); }
+  catch (error) {
+    showErrors([error.code === "permission-denied"
+      ? "Logo upload was denied. Publish firestore.rules in Firebase Console and confirm you are signed in with the configured organizer account."
+      : `Logo upload failed: ${error.message || "Check your connection and try again."}`]);
+    console.error(error);
+  }
   event.target.value = "";
 });
 $("#removeTeamLogoBtn").addEventListener("click", async () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team || !teamLogos[team.id]) return; await services.firestoreSdk.deleteDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id)); delete teamLogos[team.id]; $("#logoUploadStatus").textContent = "Uploaded logo removed"; renderTeamEditor(); });
 
 $("#newMatchBtn").addEventListener("click", () => { const match = emptyMatch(Math.max(0, ...tournament.matches.map(item => Number(item.number) || 0)) + 1); tournament.matches.push(match); selectedMatchId = match.id; renderMatchSelector(); renderMatchEditor(); });
+$("#createChartScheduleBtn").addEventListener("click", async () => {
+  try {
+    const matches = createChartSchedule(tournament.teams, tournament.matches);
+    const chartGames = matches.filter(match => Number(match.number) <= 19).length;
+    if (!confirm(`Publish the ${chartGames}-match fixture chart from the PDF with its team assignments, dates, start times, and knockout format? Existing scores and results are preserved unless a progressed match would need different teams.`)) return;
+    tournament.matches = matches;
+    if (await persist("Fixture chart published")) {
+      renderMatchSelector();
+      renderMatchEditor();
+    }
+  } catch (error) {
+    showErrors([error.message || "The fixture chart could not be created."]);
+  }
+});
 $("#matchSelector").addEventListener("change", event => { selectedMatchId = event.target.value; renderMatchEditor(); });
 $("#deleteMatchBtn").addEventListener("click", async () => { if (!selectedMatchId || !confirm("Delete this match permanently?")) return; tournament.matches = tournament.matches.filter(match => match.id !== selectedMatchId); selectedMatchId = ""; await persist("Match deleted"); });
 $("#matchForm").addEventListener("submit", async event => {

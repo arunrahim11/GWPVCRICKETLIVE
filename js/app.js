@@ -1,8 +1,8 @@
-import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, getMatchScore, getMatchTiming, calculateInnings } from "./data.js";
+import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, CHART_POOL_FIXTURES, CHART_TEAM_GWIDS, getMatchScore, getMatchTiming, calculateInnings } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
-let matchFilter = "Live";
+let matchFilter = "Upcoming";
 let teamLogos = {}, teammateSearch = "", teammateTeamFilter = "all";
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -10,7 +10,10 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp
 
 function team(id) { return tournament.teams.find(item => item.id === id); }
 function pool(id) { return tournament.pools.find(item => item.id === id); }
-function teamName(id) { return team(id)?.name || "Team to be confirmed"; }
+function teamName(id) {
+  const placeholders = { "TBD-A1":"Pool A winner", "TBD-A2":"Pool A runner-up", "TBD-B1":"Pool B winner", "TBD-B2":"Pool B runner-up", "TBD-SF1":"Semi-final 1 winner", "TBD-SF2":"Semi-final 2 winner" };
+  return team(id)?.name || placeholders[id] || "Team to be confirmed";
+}
 function hasScore(value) { return value !== "" && value != null; }
 function score(match, side) {
   const runs = match[`${side}Runs`], wickets = match[`${side}Wickets`], overs = match[`${side}Overs`];
@@ -22,6 +25,50 @@ function formatDate(date, time = "") {
   const dateText = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }).format(value);
   if (!time) return dateText;
   return `${dateText} · ${new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(value)} IST`;
+}
+function formatTime(time) {
+  if (!time) return "To be announced";
+  const [hour, minute] = time.split(":").map(Number);
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${hour < 12 ? "am" : "pm"} IST`;
+}
+function formatMatchClock(milliseconds) {
+  if (milliseconds == null) return "—";
+  const totalSeconds = Math.floor(Math.max(0, milliseconds) / 1000);
+  return `${String(Math.floor(totalSeconds / 3600)).padStart(2, "0")}:${String(Math.floor(totalSeconds % 3600 / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+function matchFormat(match) {
+  const overs = Number(match.oversPerInnings) || 10;
+  const powerplay = Number(match.powerplayOvers) || 0;
+  const bowlerLimit = Number(match.maxOversPerBowler) || 0;
+  return `<div class="match-format" aria-label="Match format"><span><b>${overs} overs</b> per innings</span><span><b>${powerplay} overs</b> powerplay</span><span><b>${bowlerLimit ? `${bowlerLimit} overs` : "No limit"}</b> per bowler</span></div>`;
+}
+function matchRules(match) {
+  const rules = [
+    ["Overs per innings", `${Number(match.oversPerInnings) || 10} overs`],
+    ["Powerplay", `${Number(match.powerplayOvers) || 0} overs`],
+    ["Maximum per bowler", Number(match.maxOversPerBowler) ? `${Number(match.maxOversPerBowler)} overs` : "No limit"],
+    ["Expected duration", `${Number(match.expectedMinutes) || 90} minutes`],
+    ["Innings break", `${Number(match.inningsBreakMinutes) || 0} minutes`]
+  ];
+  return `<section class="match-rules" aria-label="Match rules"><h3>Match rules</h3><div>${rules.map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div></section>`;
+}
+function scheduledStart(match) { return match.time ? formatTime(match.time) : "To be announced"; }
+function actualStartTime(match) {
+  return match.actualStart
+    ? `${new Intl.DateTimeFormat("en-IN", { hour:"numeric", minute:"2-digit", second:"2-digit", timeZone:"Asia/Kolkata" }).format(new Date(match.actualStart))} IST`
+    : "Not started";
+}
+function estimatedFinishTime(match, timing) {
+  if (match.actualEnd) return `${new Intl.DateTimeFormat("en-IN", { hour:"numeric", minute:"2-digit", timeZone:"Asia/Kolkata" }).format(new Date(match.actualEnd))} IST`;
+  return timing.estimatedEnd ? `${new Intl.DateTimeFormat("en-IN", { hour:"numeric", minute:"2-digit", timeZone:"Asia/Kolkata" }).format(new Date(timing.estimatedEnd))} IST` : "—";
+}
+function renderMatchClock(match) {
+  const timing = getMatchTiming(match);
+  const elapsed = $("#elapsedClock"), remaining = $("#remainingClock"), start = $("#actualStartClock"), finish = $("#finishClock");
+  if (elapsed) elapsed.textContent = `${timing.elapsedMs == null ? "Not started" : formatMatchClock(timing.elapsedMs)} / ${Number(match.expectedMinutes) || 90} min`;
+  if (remaining) remaining.textContent = match.actualEnd ? timing.durationText : `${formatMatchClock(timing.remainingMs)}${match.actualStart && timing.remainingMs === 0 ? " · TIME EXPIRED" : match.actualStart ? "" : " · NOT STARTED"}`;
+  if (start) start.textContent = actualStartTime(match);
+  if (finish) finish.textContent = estimatedFinishTime(match, timing);
 }
 function matchPlace(match) { return [pool(match.poolId)?.name || match.stage, match.venue].filter(Boolean).join(" · ") || "Details to be announced"; }
 function badge(status) { return `<span class="match-status status-${esc(status.toLowerCase())}">${esc(status)}</span>`; }
@@ -35,6 +82,7 @@ function scoreCard(match, prominent = false) {
   const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
   return `<article class="match-card ${prominent ? "live-card" : ""}">
     <div class="match-card-head"><span>Match ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} overs</span><div>${powerplay ? '<span class="powerplay-badge">POWERPLAY</span>' : ""}${badge(match.status)}</div></div>
+    ${matchFormat(match)}
     <div class="versus-score"><div>${logoMarkup(first, "score-logo")}<strong>${esc(teamName(match.team1Id))}</strong><b>${esc(score(match, "team1"))}</b></div><span>VS</span><div>${logoMarkup(second, "score-logo")}<strong>${esc(teamName(match.team2Id))}</strong><b>${esc(score(match, "team2"))}</b></div></div>
     <p class="match-meta">${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p>
     ${match.status === "Live" ? `<div class="live-metrics"><span>Innings ${esc(match.innings)}</span>${match.battingTeamId ? `<span>${esc(batting)} batting</span>` : ""}${activeCalc ? `<span>CRR ${activeCalc.runRate.toFixed(2)}</span>` : ""}${required != null ? `<span>Need ${required} from ${matchScore.ballsRemaining}</span>${matchScore.requiredRunRate != null ? `<span>RRR ${matchScore.requiredRunRate.toFixed(2)}</span>` : ""}` : ""}</div>` : ""}
@@ -44,7 +92,7 @@ function scoreCard(match, prominent = false) {
 }
 
 function fixtureRow(match) {
-  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))}</p><p>${esc(matchPlace(match))} · ${esc(match.oversPerInnings || 10)} overs · Powerplay ${esc(match.powerplayOvers || 0)} overs</p>${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
+  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))} · Start ${esc(scheduledStart(match))}</p><p>${esc(matchPlace(match))}</p>${matchFormat(match)}${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
 }
 
 function renderDashboard() {
@@ -76,9 +124,29 @@ function renderTeams(activePool = "all") {
   const pools = [...tournament.pools].sort((a,b) => a.displayOrder - b.displayOrder);
   $("#poolFilters").innerHTML = `<button class="chip ${activePool === "all" ? "active" : ""}" data-pool-filter="all">All teams</button>${pools.map(item => `<button class="chip ${activePool === item.id ? "active" : ""}" data-pool-filter="${esc(item.id)}">${esc(item.name)}</button>`).join("")}`;
   const teams = tournament.teams.filter(item => item.name.trim() && (activePool === "all" || item.poolId === activePool)).sort((a,b) => a.serial - b.serial);
-  $("#teamGrid").innerHTML = teams.length ? teams.map(item => `<article class="team-card"><span class="serial-badge">#${item.serial}</span>${logoMarkup(item)}<h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p><div class="captain-line"><span>Captain</span><strong>${esc(item.captain.name || "Not entered")}</strong>${item.captain.publishPhone && item.captain.phone ? `<a href="tel:${esc(item.captain.phone)}">${esc(item.captain.phone)}</a>` : ""}</div><button class="secondary-btn" data-team-id="${esc(item.id)}">View Players</button></article>`).join("") : empty("No teams have been registered in this view.");
+  $("#teamGrid").innerHTML = teams.length ? teams.map(item => `<article class="team-card"><span class="serial-badge">#${item.serial}</span>${logoMarkup(item)}<h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p><div class="captain-line"><span>Captain</span><strong>${esc(item.captain.name || "Not entered")}</strong>${item.captain.phone ? `<a href="tel:${esc(item.captain.phone)}">${esc(item.captain.phone)}</a>` : ""}</div><button class="secondary-btn" data-team-id="${esc(item.id)}">View Players</button></article>`).join("") : empty("No teams have been registered in this view.");
+  renderTeamSchedules();
   $$('[data-pool-filter]').forEach(button => button.addEventListener("click", () => renderTeams(button.dataset.poolFilter)));
   $$('[data-team-id]').forEach(button => button.addEventListener("click", () => openTeam(button.dataset.teamId)));
+}
+
+function renderTeamSchedules() {
+  const poolMatches = tournament.matches.filter(match => /^Pool [AB]$/.test(match.stage));
+  if (!poolMatches.length) {
+    $("#teamSchedule").innerHTML = empty("The fixture chart has not been published yet.");
+    return;
+  }
+  const teams = tournament.teams.filter(item => item.name.trim()).sort((a, b) => a.serial - b.serial);
+  $("#teamSchedule").innerHTML = teams.map(item => {
+    const played = poolMatches.filter(match => match.team1Id === item.id || match.team2Id === item.id)
+      .map(match => ({ number: Number(match.number), opponent: teamName(match.team1Id === item.id ? match.team2Id : match.team1Id), date: match.date ? formatDate(match.date, match.time) : "", status: match.status }));
+    const captainGwid = String(item.captain.gwid || "").trim().padStart(3, "0");
+    const chartCode = Object.entries(CHART_TEAM_GWIDS).find(([, gwid]) => gwid === captainGwid)?.[0];
+    const rests = chartCode ? CHART_POOL_FIXTURES.filter(fixture => fixture.rest === chartCode && poolMatches.some(match => Number(match.number) === fixture.number))
+      .map(fixture => ({ number: fixture.number, opponent: "", status: "Rest" })) : [];
+    const fixtures = [...played, ...rests].sort((a, b) => a.number - b.number);
+    return `<article class="schedule-team-card"><div class="schedule-team-heading"><div><span>${esc(pool(item.poolId)?.name || "Pool")}</span><h3>#${item.serial} · ${esc(item.name)}</h3></div><strong>${played.length} matches${rests.length ? ` · ${rests.length} rests` : ""}</strong></div><ol>${fixtures.map(fixture => `<li><span class="fixture-number">M${String(fixture.number).padStart(2, "0")}</span>${fixture.status === "Rest" ? `<span class="rest-label">Rest day</span>` : `<span>vs <strong>${esc(fixture.opponent)}</strong><small>${esc(fixture.date || "Date/time to be announced")}</small></span><span class="schedule-status">${esc(fixture.status)}</span>`}</li>`).join("")}</ol></article>`;
+  }).join("");
 }
 
 function renderMatches() {
@@ -96,7 +164,7 @@ function renderTeammates() {
   ]);
   const query = teammateSearch.trim().toLowerCase();
   const visible = people.filter(person => (teammateTeamFilter === "all" || person.team.id === teammateTeamFilter) && (!query || [person.name,person.gwid,person.team.name,person.team.serial].some(value => String(value || "").toLowerCase().includes(query))));
-  $("#teammateDirectory").innerHTML = visible.length ? visible.map((person,index) => `<tr><td>${index+1}</td><td><div class="directory-person">${logoMarkup(person.team,"directory-logo")}<strong>${esc(person.name)}</strong></div></td><td><span class="gwid-badge">${esc(person.gwid || "Not assigned")}</span></td><td>#${person.team.serial}</td><td>${esc(person.team.name)}</td><td>${esc(person.role)}</td><td>${tournament.settings.publishDirectoryPhones && person.phone ? `<a href="tel:${esc(person.phone)}">${esc(person.phone)}</a>` : `<span class="muted">Private</span>`}</td></tr>`).join("") : `<tr><td colspan="7"><div class="empty-state compact"><p>No teammates found.</p></div></td></tr>`;
+  $("#teammateDirectory").innerHTML = visible.length ? visible.map((person,index) => `<tr><td>${index+1}</td><td><div class="directory-person">${logoMarkup(person.team,"directory-logo")}<strong>${esc(person.name)}</strong></div></td><td><span class="gwid-badge">${esc(person.gwid || "Not assigned")}</span></td><td>#${person.team.serial}</td><td>${esc(person.team.name)}</td><td>${esc(person.role)}</td><td>${person.phone ? `<a href="tel:${esc(person.phone)}">${esc(person.phone)}</a>` : `<span class="muted">Not provided</span>`}</td></tr>`).join("") : `<tr><td colspan="7"><div class="empty-state compact"><p>No teammates found.</p></div></td></tr>`;
 }
 
 function renderCommittee() {
@@ -127,18 +195,44 @@ function eventToken(event) {
   return String(event.totalRuns || 0);
 }
 function inningsPanel(match, innings) {
-  if (!innings) return "";
+  if (!innings) {
+    if (match.status !== "Live") return "";
+    innings = {
+      number: Number(match.innings) || 1,
+      battingTeamId: match.battingTeamId,
+      bowlingTeamId: match.battingTeamId === match.team1Id ? match.team2Id : match.team1Id,
+      events: []
+    };
+  }
   const calc = calculateInnings(innings, match.powerplayOvers);
   const battingTable = calc.battingStats.length ? `<div class="auto-score-table"><h4>Batting</h4><div class="table-scroll"><table><thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead><tbody>${calc.battingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong><small>${esc(item.dismissal)}</small></td><td>${item.runs}</td><td>${item.balls}</td><td>${item.fours}</td><td>${item.sixes}</td><td>${item.strikeRate.toFixed(1)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
-  const bowlingTable = calc.bowlingStats.length ? `<div class="auto-score-table"><h4>Bowling</h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td>${item.overs}</td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
-  return `<section class="innings-panel"><div class="innings-heading"><div><span>${Number(innings.number) === 1 ? "1st" : "2nd"} innings</span><h3>${esc(teamName(innings.battingTeamId))}</h3></div><strong>${calc.runs}/${calc.wickets} <small>${calc.overs} ov</small></strong></div><div class="innings-rates"><span>Run rate <b>${calc.runRate.toFixed(2)}</b></span><span>Powerplay <b>${esc(match.powerplayOvers || 0)} overs</b></span></div><div class="over-strip">${calc.overGroups.length ? calc.overGroups.map(over => `<div class="over-block ${over.powerplay ? "powerplay-over" : ""}"><span>Over ${over.number}${over.powerplay ? " · PP" : ""}</span><div>${over.events.map(event => `<b title="${esc(event.commentary || "Delivery")}">${esc(eventToken(event))}</b>`).join("")}</div><small>${over.runs} runs${over.wickets ? ` · ${over.wickets}W` : ""}</small></div>`).join("") : `<p class="muted">Ball-by-ball scoring has not started.</p>`}</div>${battingTable}${bowlingTable}${calc.events.length ? `<div class="commentary-feed"><h4>Ball-by-ball</h4>${calc.events.slice().reverse().map(event => `<div class="commentary-row ${event.powerplay ? "powerplay-delivery" : ""}"><span>${esc(event.label)}</span><strong>${esc(eventToken(event))}</strong><p>${esc(event.commentary || `${event.bowler || "Bowler"} to ${event.batter || "Batter"}`)}</p></div>`).join("")}</div>` : ""}</section>`;
+  const bowlerLimit = Number(match.maxOversPerBowler) || 0;
+  const bowlingTable = `<div class="auto-score-table"><h4>Bowling · <strong>${bowlerLimit ? `${bowlerLimit} overs maximum per bowler` : "No over limit"}</strong></h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.length ? calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td><strong>${item.overs}</strong></td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("") : `<tr><td colspan="5" class="muted">Bowling figures will appear after the first delivery.</td></tr>`}</tbody></table></div></div>`;
+  const totalBalls = Math.max(0, Number(match.oversPerInnings) || 0) * 6;
+  const ballsRemaining = Math.max(0, totalBalls - calc.legalBalls);
+  const currentBowler = match.currentBowler || calc.events.at(-1)?.bowler || "";
+  const bowlerStats = calc.bowlingStats.find(item => item.player === currentBowler);
+  const bowlerBalls = bowlerStats?.legalBalls || 0;
+  const powerplayBalls = Math.max(0, Number(match.powerplayOvers) || 0) * 6;
+  const striker = match.currentStriker || "";
+  const nonStriker = match.currentNonStriker || "";
+  return `<section class="innings-panel"><div class="innings-heading"><div><span>${Number(innings.number) === 1 ? "1st" : "2nd"} innings</span><h3>${esc(teamName(innings.battingTeamId))}</h3></div><strong>${calc.runs}/${calc.wickets} <small>${calc.overs} / ${Number(match.oversPerInnings) || 10} ov</small></strong></div><div class="live-innings-summary"><div><span>Score</span><strong>${calc.runs}/${calc.wickets}</strong></div><div><span>Overs bowled</span><strong>${calc.overs} / ${Number(match.oversPerInnings) || 10}</strong></div><div><span>Balls</span><strong>${calc.legalBalls} bowled · ${ballsRemaining} left</strong></div><div><span>Powerplay</span><strong>${Math.min(calc.legalBalls, powerplayBalls)}/${powerplayBalls} balls</strong></div><div><span>Batting</span><strong>${esc([striker, nonStriker].filter(Boolean).join(" · ") || "Batter names not set")}</strong></div><div><span>Current bowler</span><strong>${esc(currentBowler || "Not selected")}${currentBowler ? ` · ${ballsToOverCount(bowlerBalls)} ov (${bowlerStats?.runs || 0}-${bowlerStats?.wickets || 0})` : ""}</strong>${currentBowler && bowlerLimit ? `<small>${Math.max(0, bowlerLimit * 6 - bowlerBalls)} balls remaining in ${bowlerLimit}-over limit</small>` : ""}</div></div><div class="innings-rates"><span>Run rate <b>${calc.runRate.toFixed(2)}</b></span><span>Powerplay <b>${esc(match.powerplayOvers || 0)} overs</b></span></div><div class="over-strip">${calc.overGroups.length ? calc.overGroups.map(over => `<div class="over-block ${over.powerplay ? "powerplay-over" : ""}"><span>Over ${over.number}${over.powerplay ? " · PP" : ""}</span><div>${over.events.map(event => `<b title="${esc(event.commentary || "Delivery")}">${esc(eventToken(event))}</b>`).join("")}</div><small>${over.runs} runs${over.wickets ? ` · ${over.wickets}W` : ""}</small></div>`).join("") : `<p class="muted">Ball-by-ball scoring has not started.</p>`}</div>${battingTable}${bowlingTable}${calc.events.length ? `<div class="commentary-feed"><h4>Ball-by-ball</h4>${calc.events.slice().reverse().map(event => `<div class="commentary-row ${event.powerplay ? "powerplay-delivery" : ""}"><span>${esc(event.label)}</span><strong>${esc(eventToken(event))}</strong><p>${esc(event.commentary || `${event.bowler || "Bowler"} to ${event.batter || "Batter"}`)}</p></div>`).join("")}</div>` : ""}</section>`;
 }
+function ballsToOverCount(balls) { return `${Math.floor(balls / 6)}.${balls % 6}`; }
 function openScore(id) {
   const match = tournament.matches.find(item => item.id === id); if (!match) return;
+  renderScoreDialog(match, true);
+}
+function renderScoreDialog(match, show = false) {
   const matchScore = getMatchScore(match), timing = getMatchTiming(match), activeCalc = Number(match.innings) === 2 ? matchScore.calc2 : matchScore.calc1;
   const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
-  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p></div><div class="broadcast-score">${scoreCard(match)}<div class="match-clock"><div><span>Elapsed</span><strong id="elapsedClock">${esc(timing.durationText)}</strong></div><div><span>${match.actualEnd ? "Finished" : "Estimated finish"}</span><strong id="finishClock">${timing.estimatedEnd ? new Intl.DateTimeFormat("en-IN", {hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(new Date(timing.estimatedEnd)) : "—"}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
-  $("#scoreDialog").dataset.matchId = match.id; $("#scoreDialog").showModal();
+  const timerLabel = match.actualEnd ? "Match duration" : match.actualStart ? "Time remaining" : "Match timer";
+  const elapsedLabel = `${timing.elapsedMs == null ? "Not started" : formatMatchClock(timing.elapsedMs)} / ${Number(match.expectedMinutes) || 90} min`;
+  const timerValue = match.actualEnd ? timing.durationText : `${formatMatchClock(timing.remainingMs)}${match.actualStart && timing.remainingMs === 0 ? " · TIME EXPIRED" : match.actualStart ? "" : " · NOT STARTED"}`;
+  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date))} · Start ${esc(scheduledStart(match))} · ${esc(matchPlace(match))}</p></div>${matchRules(match)}<div class="broadcast-score">${scoreCard(match)}<div class="match-clock match-clock-prominent"><div><span>Scheduled start</span><strong id="scheduledStartClock">${esc(scheduledStart(match))}</strong></div><div><span>Actual start</span><strong id="actualStartClock">${esc(actualStartTime(match))}</strong></div><div><span>Elapsed / allotted</span><strong id="elapsedClock">${esc(elapsedLabel)}</strong></div><div><span>${timerLabel}</span><strong id="remainingClock">${esc(timerValue)}</strong></div><div><span>Estimated finish</span><strong id="finishClock">${esc(estimatedFinishTime(match, timing))}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
+  const dialog = $("#scoreDialog");
+  dialog.dataset.matchId = match.id;
+  if (show) dialog.showModal();
 }
 
 function renderAll() { renderDashboard(); renderTeams(); renderTeammates(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
@@ -165,6 +259,9 @@ async function boot() {
   if (!services) { $("#connectionBadge").innerHTML = "<span></span> Setup required"; return; }
   services.firestoreSdk.onSnapshot(services.tournamentRef, snapshot => {
     tournament = normalizeTournament(snapshot.exists() ? snapshot.data() : null); renderAll();
+    const dialog = $("#scoreDialog");
+    const openMatch = dialog.open && tournament.matches.find(item => item.id === dialog.dataset.matchId);
+    if (openMatch) renderScoreDialog(openMatch);
     $("#connectionBadge").innerHTML = "<span></span> Live"; $("#connectionBadge").className = "status-pill saved";
   }, error => { $("#connectionBadge").innerHTML = "<span></span> Offline"; console.error(error); });
   services.firestoreSdk.onSnapshot(services.teamLogosRef, snapshot => { teamLogos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url)); renderAll(); }, console.error);
@@ -172,7 +269,5 @@ async function boot() {
 boot().catch(console.error);
 setInterval(() => {
   const dialog = $("#scoreDialog"), match = tournament.matches.find(item => item.id === dialog.dataset.matchId); if (!dialog.open || !match) return;
-  const timing = getMatchTiming(match); const elapsed = $("#elapsedClock"), finish = $("#finishClock");
-  if (elapsed) elapsed.textContent = timing.durationText;
-  if (finish) finish.textContent = timing.estimatedEnd ? new Intl.DateTimeFormat("en-IN", {hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(new Date(timing.estimatedEnd)) : "—";
-}, 30000);
+  renderMatchClock(match);
+}, 1000);
