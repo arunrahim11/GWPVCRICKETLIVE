@@ -43,7 +43,7 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save. The public match cards and scoreboards show these settings in bold. The match clock starts when live scoring starts, counts elapsed time and remaining time from the configured duration (90 minutes by default), and displays the scheduled and actual start times.
 8. **Committee:** add main committee, organizing team, and volunteers/supporting members.
 
-To create the fixture chart shown in the tournament schedule, open **Matches** and select **Create chart schedule**. Confirm to publish 16 pool matches, two semifinals, and a final. Team-wise fixtures and Pool A rest rounds appear under **Teams & Pools**. Match dates and times remain blank until the organizer enters them.
+To create the fixture chart shown in the tournament schedule, open **Matches** and select **Create chart schedule**. Confirm to publish the PDF's 16 ordered pool matches, two semifinals, and final with the listed team assignments, dates, and IST start times. The knockout schedule is set to 2 Oct 2026 (Day 04), following the three pool days; semifinals are 10 overs and the final is 12 overs. Team-wise fixtures and Pool A rest rounds appear under **Teams & Pools**. Match scores and results are preserved, and a progressed match cannot be reassigned to different teams.
 
 ## 5. Update live scores
 

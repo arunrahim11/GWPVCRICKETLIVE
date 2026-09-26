@@ -65,20 +65,64 @@ assert.equal(phoneTeams[0].players[1].phone, "9222222222");
 const ambiguousPhoneTeams = [{ captain: { gwid:"174", name:"Vamshi Krishna" }, players:[{ gwid:"175", name:"Vamshi Krishna" }] }];
 assert.equal(updatePhonesByGwid(ambiguousPhoneTeams, { "310":"9222222222" }, { "310":["Vamshi Krishna"] }), 0);
 
-const chartTeams = ["441","459","125","231","228","177","433","122","445"].map((gwid, index) => ({
-  id: `chart-team-${index + 1}`, captain: { gwid }
-}));
+const chartTeams = [
+  { id:"team-b4", name:"Warangal Rackers", captain:{ name:"K.Vikram", gwid:"177" } },
+  { id:"team-a1", name:"Royal Fellas", captain:{ name:"Vinod", gwid:"433" } },
+  { id:"team-b2", name:"Kola Warriors", captain:{ name:"Kola Raju", gwid:"122" } },
+  { id:"team-a2", name:"Pallavi warriors", captain:{ name:"Aravind(Chintu)", gwid:"445" } },
+  { id:"team-a4", name:"Khila Khiladies", captain:{ name:"Srikanth", gwid:"441" } },
+  { id:"team-a3", name:"Prasanna Warriors", captain:{ name:"Prasanna", gwid:"459" } },
+  { id:"team-a5", name:"Orugallu Lions", captain:{ name:"Kiran Shetty", gwid:"125" } },
+  { id:"team-b3", name:"Orange Army", captain:{ name:"Raju Rao", gwid:"231" } },
+  { id:"team-b1", name:"Sparkle Fighters", captain:{ name:"Rajesh Sparkil", gwid:"228" } }
+];
 const chartSchedule = createChartSchedule(chartTeams);
 assert.equal(chartSchedule.length, 19);
 assert.equal(chartSchedule.filter(item => item.stage === "Pool A").length, 10);
 assert.equal(chartSchedule.filter(item => item.stage === "Pool B").length, 6);
 assert.equal(chartSchedule.filter(item => item.stage.startsWith("Semi-final")).length, 2);
 assert.equal(chartSchedule.find(item => item.number === 19).stage, "Grand final");
+assert.deepEqual(
+  chartSchedule.slice(0, 10).map(item => [item.number, item.date, item.time]),
+  [
+    [1, "2026-09-29", "08:00"], [2, "2026-09-29", "09:30"], [3, "2026-09-29", "11:00"],
+    [4, "2026-09-29", "13:00"], [5, "2026-09-29", "14:30"],
+    [6, "2026-09-30", "08:00"], [7, "2026-09-30", "09:30"], [8, "2026-09-30", "11:00"],
+    [9, "2026-09-30", "13:00"], [10, "2026-09-30", "14:30"]
+  ]
+);
+assert.deepEqual(
+  chartSchedule.slice(10, 16).map(item => [item.number, item.date, item.time]),
+  [
+    [11, "2026-10-01", "08:00"], [12, "2026-10-01", "09:30"], [13, "2026-10-01", "11:00"],
+    [14, "2026-10-01", "13:00"], [15, "2026-10-01", "14:30"], [16, "2026-10-01", "16:00"]
+  ]
+);
+assert.deepEqual(
+  chartSchedule.slice(16).map(item => [item.number, item.stage, item.date, item.time, item.oversPerInnings]),
+  [
+    [17, "Semi-final 1", "2026-10-02", "08:00", 10],
+    [18, "Semi-final 2", "2026-10-02", "11:00", 10],
+    [19, "Grand final", "2026-10-02", "14:00", 12]
+  ]
+);
+assert.deepEqual(
+  chartSchedule.slice(0, 5).map(item => [item.team1Id, item.team2Id]),
+  [
+    ["team-a4", "team-a3"], ["team-b4", "team-a1"], ["team-a5", "team-b3"],
+    ["team-b2", "team-a2"], ["team-a4", "team-b1"]
+  ]
+);
+for (let index = 1; index < CHART_POOL_FIXTURES.length; index += 1) {
+  const previous = new Set([chartSchedule[index - 1].team1Id, chartSchedule[index - 1].team2Id]);
+  assert(!previous.has(chartSchedule[index].team1Id) && !previous.has(chartSchedule[index].team2Id), `Consecutive pool matches share a team at match ${index + 1}.`);
+}
 assert.equal(CHART_POOL_FIXTURES.filter(item => item.rest).length, 10);
-const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"chart-team-1", team2Id:"chart-team-2", date:"2026-09-29", stage:"Match 01" };
+const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"team-a4", team2Id:"team-a3", date:"2026-09-30", time:"16:00", stage:"Match 01" };
 const refreshedChart = createChartSchedule(chartTeams, [existingChartMatch]);
 assert.equal(refreshedChart.find(item => item.number === 1).id, "existing-match-1");
 assert.equal(refreshedChart.find(item => item.number === 1).date, "2026-09-29");
+assert.equal(refreshedChart.find(item => item.number === 1).time, "08:00");
 assert.equal(refreshedChart.find(item => item.number === 1).stage, "Pool A");
 assert.throws(() => createChartSchedule(chartTeams, [{ ...emptyMatch(1), team1Id:"old", team2Id:"fixture", status:"Completed" }]), /cannot be replaced/);
 
