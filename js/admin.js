@@ -19,6 +19,11 @@ const wordListPhonesByGwid = {
   "611":"9949370694","685":"9989641051","541":"9000237002","583":"9394765699","112":"9866769836",
   "209":"8919074413","212":"9390015333","226":"9603121306"
 };
+const wordListNameMatchesByGwid = {
+  "310":["Vamshi Krishna"],
+  "565":["B. Sambhashivudu"],
+  "598":["A. Vijay"]
+};
 
 let services, tournament, unsubscribe, unsubscribePrivate, publicSnapshot, privateSnapshot = { teams: [] };
 let selectedTeamId = "team-1", selectedMatchId = "", selectedScoreMatchId = "", selectedMemberId = "", selectedInningsNumber = 1;
@@ -194,10 +199,11 @@ $("#savePoolsBtn").addEventListener("click", async () => { tournament.pools = $$
 
 $("#teamSelector").addEventListener("change", event => { selectedTeamId = event.target.value; renderTeamEditor(); });
 $("#importDirectoryPhonesBtn").addEventListener("click", async () => {
-  const matched = tournament.teams.flatMap(team => [team.captain, ...team.players]).filter(person => Object.hasOwn(wordListPhonesByGwid, String(person.gwid || "").trim().padStart(3, "0"))).length;
+  const preview = structuredClone(tournament.teams);
+  const matched = updatePhonesByGwid(preview, wordListPhonesByGwid, wordListNameMatchesByGwid);
   if (!matched) { showErrors(["No players in the current roster match the Word-list IDs."]); return; }
-  if (!confirm(`Publish phone numbers for ${matched} players matched by GWID? These numbers will be visible in the public All Teammates directory.`)) return;
-  const updated = updatePhonesByGwid(tournament.teams, wordListPhonesByGwid);
+  if (!confirm(`Publish phone numbers for ${matched} players matched by GWID or a unique name from the numbered list? These numbers will be visible in the public All Teammates directory.`)) return;
+  const updated = updatePhonesByGwid(tournament.teams, wordListPhonesByGwid, wordListNameMatchesByGwid);
   if (await persist(`${updated} directory phone numbers published`)) renderTeamEditor();
 });
 $("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (team.players.length >= 13) { showErrors(["This team already has 14 players: one captain and 13 additional players."]); return; } team.players.push({ id: createId("player"), name: "", gwid: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });

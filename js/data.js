@@ -81,15 +81,26 @@ export function normalizeTournament(raw) {
   };
 }
 
-export function updatePhonesByGwid(teams, phoneByGwid) {
+export function updatePhonesByGwid(teams, phoneByGwid, fallbackNamesByGwid = {}) {
+  const people = teams.flatMap(team => [team.captain, ...team.players]);
+  const fallbackPhones = new Map();
+  Object.entries(fallbackNamesByGwid).forEach(([id, names]) => {
+    const gwid = id.trim().padStart(3, "0");
+    if (!Object.hasOwn(phoneByGwid, gwid)) return;
+    const normalizedNames = new Set(names.map(name => name.trim().toLowerCase().replace(/[^a-z0-9]/g, "")));
+    const matches = people.filter(person =>
+      !Object.hasOwn(phoneByGwid, String(person.gwid || "").trim().padStart(3, "0"))
+      && normalizedNames.has(String(person.name || "").trim().toLowerCase().replace(/[^a-z0-9]/g, ""))
+    );
+    if (matches.length === 1) fallbackPhones.set(matches[0], phoneByGwid[gwid]);
+  });
   let updated = 0;
-  teams.forEach(team => {
-    [team.captain, ...team.players].forEach(person => {
-      const gwid = String(person.gwid || "").trim().padStart(3, "0");
-      if (!Object.hasOwn(phoneByGwid, gwid)) return;
-      person.phone = phoneByGwid[gwid];
-      updated += 1;
-    });
+  people.forEach(person => {
+    const gwid = String(person.gwid || "").trim().padStart(3, "0");
+    const phone = phoneByGwid[gwid] || fallbackPhones.get(person);
+    if (!phone) return;
+    person.phone = phone;
+    updated += 1;
   });
   return updated;
 }

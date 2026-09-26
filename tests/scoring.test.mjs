@@ -31,11 +31,13 @@ assert(configurationErrors.some(error => error.includes("powerplay")));
 const migrated = normalizeTournament({ teams: [{ name:"Warriors", captain:"Vinod", players:[{name:"VINOD",role:"Captain"},{name:"Yani",role:"Vice Captain"}] }] });
 assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0].players[0].name, "Yani");
 
-const phoneTeams = [{ captain: { gwid:"67", phone:"" }, players:[{ gwid:"125", phone:"old" },{ gwid:"999", phone:"unchanged" }] }];
-assert.equal(updatePhonesByGwid(phoneTeams, { "067":"9000000000", "125":"9111111111" }), 2);
+const phoneTeams = [{ captain: { gwid:"67", phone:"" }, players:[{ gwid:"125", phone:"old" },{ gwid:"999", name:"Vamshi Krishna", phone:"unchanged" }] }];
+assert.equal(updatePhonesByGwid(phoneTeams, { "067":"9000000000", "125":"9111111111", "310":"9222222222" }, { "310":["Vamshi Krishna"] }), 3);
 assert.equal(phoneTeams[0].captain.phone, "9000000000");
 assert.equal(phoneTeams[0].players[0].phone, "9111111111");
-assert.equal(phoneTeams[0].players[1].phone, "unchanged");
+assert.equal(phoneTeams[0].players[1].phone, "9222222222");
+const ambiguousPhoneTeams = [{ captain: { gwid:"174", name:"Vamshi Krishna" }, players:[{ gwid:"175", name:"Vamshi Krishna" }] }];
+assert.equal(updatePhonesByGwid(ambiguousPhoneTeams, { "310":"9222222222" }, { "310":["Vamshi Krishna"] }), 0);
 
 const gwidTeams = Array.from({ length:9 }, (_,index) => ({ name:"", serial:index+1, captain:{name:"",gwid:""}, players:[] }));
 gwidTeams[0] = { name:"Warriors", serial:1, captain:{name:"Vinod",gwid:"GWPV001"}, players:[{name:"Yani",gwid:"gwpv001"}] };
