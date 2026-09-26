@@ -43,6 +43,8 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save.
 8. **Committee:** add main committee, organizing team, and volunteers/supporting members.
 
+To create the fixture chart shown in the tournament schedule, open **Matches** and select **Create chart schedule**. Confirm to publish 16 pool matches, two semifinals, and a final. Team-wise fixtures and Pool A rest rounds appear under **Teams & Pools**. Match dates and times remain blank until the organizer enters them.
+
 ## 5. Update live scores
 
 1. Open **Live Scoring**, select the scheduled match, and press **Start match**.

@@ -1,4 +1,4 @@
-import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, getMatchScore, getMatchTiming, calculateInnings } from "./data.js";
+import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, CHART_POOL_FIXTURES, CHART_TEAM_GWIDS, getMatchScore, getMatchTiming, calculateInnings } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
@@ -10,7 +10,10 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp
 
 function team(id) { return tournament.teams.find(item => item.id === id); }
 function pool(id) { return tournament.pools.find(item => item.id === id); }
-function teamName(id) { return team(id)?.name || "Team to be confirmed"; }
+function teamName(id) {
+  const placeholders = { "TBD-A1":"Pool A winner", "TBD-A2":"Pool A runner-up", "TBD-B1":"Pool B winner", "TBD-B2":"Pool B runner-up", "TBD-SF1":"Semi-final 1 winner", "TBD-SF2":"Semi-final 2 winner" };
+  return team(id)?.name || placeholders[id] || "Team to be confirmed";
+}
 function hasScore(value) { return value !== "" && value != null; }
 function score(match, side) {
   const runs = match[`${side}Runs`], wickets = match[`${side}Wickets`], overs = match[`${side}Overs`];
@@ -77,8 +80,28 @@ function renderTeams(activePool = "all") {
   $("#poolFilters").innerHTML = `<button class="chip ${activePool === "all" ? "active" : ""}" data-pool-filter="all">All teams</button>${pools.map(item => `<button class="chip ${activePool === item.id ? "active" : ""}" data-pool-filter="${esc(item.id)}">${esc(item.name)}</button>`).join("")}`;
   const teams = tournament.teams.filter(item => item.name.trim() && (activePool === "all" || item.poolId === activePool)).sort((a,b) => a.serial - b.serial);
   $("#teamGrid").innerHTML = teams.length ? teams.map(item => `<article class="team-card"><span class="serial-badge">#${item.serial}</span>${logoMarkup(item)}<h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p><div class="captain-line"><span>Captain</span><strong>${esc(item.captain.name || "Not entered")}</strong>${item.captain.phone ? `<a href="tel:${esc(item.captain.phone)}">${esc(item.captain.phone)}</a>` : ""}</div><button class="secondary-btn" data-team-id="${esc(item.id)}">View Players</button></article>`).join("") : empty("No teams have been registered in this view.");
+  renderTeamSchedules();
   $$('[data-pool-filter]').forEach(button => button.addEventListener("click", () => renderTeams(button.dataset.poolFilter)));
   $$('[data-team-id]').forEach(button => button.addEventListener("click", () => openTeam(button.dataset.teamId)));
+}
+
+function renderTeamSchedules() {
+  const poolMatches = tournament.matches.filter(match => /^Pool [AB]$/.test(match.stage));
+  if (!poolMatches.length) {
+    $("#teamSchedule").innerHTML = empty("The fixture chart has not been published yet.");
+    return;
+  }
+  const teams = tournament.teams.filter(item => item.name.trim()).sort((a, b) => a.serial - b.serial);
+  $("#teamSchedule").innerHTML = teams.map(item => {
+    const played = poolMatches.filter(match => match.team1Id === item.id || match.team2Id === item.id)
+      .map(match => ({ number: Number(match.number), opponent: teamName(match.team1Id === item.id ? match.team2Id : match.team1Id), date: match.date ? formatDate(match.date, match.time) : "", status: match.status }));
+    const captainGwid = String(item.captain.gwid || "").trim().padStart(3, "0");
+    const chartCode = Object.entries(CHART_TEAM_GWIDS).find(([, gwid]) => gwid === captainGwid)?.[0];
+    const rests = chartCode ? CHART_POOL_FIXTURES.filter(fixture => fixture.rest === chartCode && poolMatches.some(match => Number(match.number) === fixture.number))
+      .map(fixture => ({ number: fixture.number, opponent: "", status: "Rest" })) : [];
+    const fixtures = [...played, ...rests].sort((a, b) => a.number - b.number);
+    return `<article class="schedule-team-card"><div class="schedule-team-heading"><div><span>${esc(pool(item.poolId)?.name || "Pool")}</span><h3>#${item.serial} · ${esc(item.name)}</h3></div><strong>${played.length} matches${rests.length ? ` · ${rests.length} rests` : ""}</strong></div><ol>${fixtures.map(fixture => `<li><span class="fixture-number">M${String(fixture.number).padStart(2, "0")}</span>${fixture.status === "Rest" ? `<span class="rest-label">Rest day</span>` : `<span>vs <strong>${esc(fixture.opponent)}</strong><small>${esc(fixture.date || "Date/time to be announced")}</small></span><span class="schedule-status">${esc(fixture.status)}</span>`}</li>`).join("")}</ol></article>`;
+  }).join("");
 }
 
 function renderMatches() {

@@ -1,4 +1,4 @@
-import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration, updatePhonesByGwid } from "./data.js";
+import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration, updatePhonesByGwid, createChartSchedule } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
 const wordListPhonesByGwid = {
@@ -37,9 +37,12 @@ function setSaveState(label, kind = "") { const el = $("#saveState"); el.innerHT
 function showErrors(errors) { const el = $("#validationBanner"); el.innerHTML = errors.map(error => `<p>${esc(error)}</p>`).join(""); el.classList.toggle("hidden", !errors.length); if (errors.length) el.scrollIntoView({ behavior: "smooth", block: "center" }); }
 function formObject(form) { return Object.fromEntries(new FormData(form).entries()); }
 function fillForm(form, values) { Object.entries(values || {}).forEach(([key, value]) => { const field = form.elements.namedItem(key); if (!field) return; if (field.type === "checkbox") field.checked = Boolean(value); else field.value = value ?? ""; }); }
-function teamName(id) { return tournament?.teams.find(team => team.id === id)?.name || `Team slot ${tournament?.teams.find(team => team.id === id)?.serial || ""}`.trim(); }
+function teamName(id) {
+  const placeholders = { "TBD-A1":"Pool A winner", "TBD-A2":"Pool A runner-up", "TBD-B1":"Pool B winner", "TBD-B2":"Pool B runner-up", "TBD-SF1":"Semi-final 1 winner", "TBD-SF2":"Semi-final 2 winner" };
+  return tournament?.teams.find(team => team.id === id)?.name || placeholders[id] || `Team slot ${tournament?.teams.find(team => team.id === id)?.serial || ""}`.trim();
+}
 function poolOptions(selected = "") { return `<option value="">Not assigned</option>${tournament.pools.sort((a,b) => a.displayOrder - b.displayOrder).map(pool => `<option value="${attr(pool.id)}" ${pool.id === selected ? "selected" : ""}>${esc(pool.name)}</option>`).join("")}`; }
-function teamOptions(selected = "", includeBlank = true) { return `${includeBlank ? '<option value="">Select a team</option>' : ""}${tournament.teams.filter(team => team.name.trim()).sort((a,b) => a.serial - b.serial).map(team => `<option value="${attr(team.id)}" ${team.id === selected ? "selected" : ""}>#${team.serial} · ${esc(team.name)}</option>`).join("")}`; }
+function teamOptions(selected = "", includeBlank = true) { const placeholders = { "TBD-A1":"Pool A winner", "TBD-A2":"Pool A runner-up", "TBD-B1":"Pool B winner", "TBD-B2":"Pool B runner-up", "TBD-SF1":"Semi-final 1 winner", "TBD-SF2":"Semi-final 2 winner" }; const pending = placeholders[selected] ? `<option value="${attr(selected)}" selected>${esc(placeholders[selected])}</option>` : ""; return `${includeBlank ? '<option value="">Select a team</option>' : ""}${pending}${tournament.teams.filter(team => team.name.trim()).sort((a,b) => a.serial - b.serial).map(team => `<option value="${attr(team.id)}" ${team.id === selected ? "selected" : ""}>#${team.serial} · ${esc(team.name)}</option>`).join("")}`; }
 
 async function persist(success = "Saved live") {
   const errors = validateTournament(tournament); showErrors(errors); if (errors.length) return false;
@@ -239,6 +242,20 @@ $("#teamLogoFile").addEventListener("change", async event => {
 $("#removeTeamLogoBtn").addEventListener("click", async () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team || !teamLogos[team.id]) return; await services.firestoreSdk.deleteDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id)); delete teamLogos[team.id]; $("#logoUploadStatus").textContent = "Uploaded logo removed"; renderTeamEditor(); });
 
 $("#newMatchBtn").addEventListener("click", () => { const match = emptyMatch(Math.max(0, ...tournament.matches.map(item => Number(item.number) || 0)) + 1); tournament.matches.push(match); selectedMatchId = match.id; renderMatchSelector(); renderMatchEditor(); });
+$("#createChartScheduleBtn").addEventListener("click", async () => {
+  try {
+    const matches = createChartSchedule(tournament.teams, tournament.matches);
+    const chartGames = matches.filter(match => Number(match.number) <= 19).length;
+    if (!confirm(`Create the ${chartGames}-match fixture chart (16 pool games, two semifinals, and a final)? Match dates and times will remain unannounced.`)) return;
+    tournament.matches = matches;
+    if (await persist("Fixture chart published")) {
+      renderMatchSelector();
+      renderMatchEditor();
+    }
+  } catch (error) {
+    showErrors([error.message || "The fixture chart could not be created."]);
+  }
+});
 $("#matchSelector").addEventListener("change", event => { selectedMatchId = event.target.value; renderMatchEditor(); });
 $("#deleteMatchBtn").addEventListener("click", async () => { if (!selectedMatchId || !confirm("Delete this match permanently?")) return; tournament.matches = tournament.matches.filter(match => match.id !== selectedMatchId); selectedMatchId = ""; await persist("Match deleted"); });
 $("#matchForm").addEventListener("submit", async event => {

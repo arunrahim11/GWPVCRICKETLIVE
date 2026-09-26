@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -38,6 +38,23 @@ assert.equal(phoneTeams[0].players[0].phone, "9111111111");
 assert.equal(phoneTeams[0].players[1].phone, "9222222222");
 const ambiguousPhoneTeams = [{ captain: { gwid:"174", name:"Vamshi Krishna" }, players:[{ gwid:"175", name:"Vamshi Krishna" }] }];
 assert.equal(updatePhonesByGwid(ambiguousPhoneTeams, { "310":"9222222222" }, { "310":["Vamshi Krishna"] }), 0);
+
+const chartTeams = ["441","459","125","231","228","177","433","122","445"].map((gwid, index) => ({
+  id: `chart-team-${index + 1}`, captain: { gwid }
+}));
+const chartSchedule = createChartSchedule(chartTeams);
+assert.equal(chartSchedule.length, 19);
+assert.equal(chartSchedule.filter(item => item.stage === "Pool A").length, 10);
+assert.equal(chartSchedule.filter(item => item.stage === "Pool B").length, 6);
+assert.equal(chartSchedule.filter(item => item.stage.startsWith("Semi-final")).length, 2);
+assert.equal(chartSchedule.find(item => item.number === 19).stage, "Grand final");
+assert.equal(CHART_POOL_FIXTURES.filter(item => item.rest).length, 10);
+const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"chart-team-1", team2Id:"chart-team-2", date:"2026-09-29", stage:"Match 01" };
+const refreshedChart = createChartSchedule(chartTeams, [existingChartMatch]);
+assert.equal(refreshedChart.find(item => item.number === 1).id, "existing-match-1");
+assert.equal(refreshedChart.find(item => item.number === 1).date, "2026-09-29");
+assert.equal(refreshedChart.find(item => item.number === 1).stage, "Pool A");
+assert.throws(() => createChartSchedule(chartTeams, [{ ...emptyMatch(1), team1Id:"old", team2Id:"fixture", status:"Completed" }]), /cannot be replaced/);
 
 const gwidTeams = Array.from({ length:9 }, (_,index) => ({ name:"", serial:index+1, captain:{name:"",gwid:""}, players:[] }));
 gwidTeams[0] = { name:"Warriors", serial:1, captain:{name:"Vinod",gwid:"GWPV001"}, players:[{name:"Yani",gwid:"gwpv001"}] };

@@ -5,6 +5,36 @@ export const COMMITTEE_SECTIONS = [
   { value: "volunteers", label: "Volunteers & supporting members" }
 ];
 
+export const CHART_POOL_FIXTURES = [
+  { number: 1, pool: "A", team1: "A1", team2: "A2", rest: "A5" },
+  { number: 2, pool: "B", team1: "B1", team2: "B2" },
+  { number: 3, pool: "A", team1: "A3", team2: "A4", rest: "A5" },
+  { number: 4, pool: "B", team1: "B3", team2: "B4" },
+  { number: 5, pool: "A", team1: "A1", team2: "A5", rest: "A4" },
+  { number: 6, pool: "B", team1: "B1", team2: "B3" },
+  { number: 7, pool: "A", team1: "A2", team2: "A3", rest: "A4" },
+  { number: 8, pool: "B", team1: "B2", team2: "B4" },
+  { number: 9, pool: "A", team1: "A4", team2: "A5", rest: "A3" },
+  { number: 10, pool: "B", team1: "B1", team2: "B4" },
+  { number: 11, pool: "A", team1: "A1", team2: "A3", rest: "A2" },
+  { number: 12, pool: "B", team1: "B2", team2: "B3" },
+  { number: 13, pool: "A", team1: "A2", team2: "A5", rest: "A1" },
+  { number: 14, pool: "A", team1: "A1", team2: "A4", rest: "A2" },
+  { number: 15, pool: "A", team1: "A3", team2: "A5", rest: "A1" },
+  { number: 16, pool: "A", team1: "A2", team2: "A4", rest: "A3" }
+];
+
+export const CHART_TEAM_GWIDS = {
+  A1: "441", A2: "459", A3: "125", A4: "231", A5: "228",
+  B1: "177", B2: "433", B3: "122", B4: "445"
+};
+
+const CHART_KNOCKOUT_FIXTURES = [
+  { number: 17, team1Id: "TBD-A1", team2Id: "TBD-B2", stage: "Semi-final 1" },
+  { number: 18, team1Id: "TBD-B1", team2Id: "TBD-A2", stage: "Semi-final 2" },
+  { number: 19, team1Id: "TBD-SF1", team2Id: "TBD-SF2", stage: "Grand final" }
+];
+
 export const createId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 export function emptyTeam(serial) {
@@ -21,6 +51,54 @@ export function emptyMatch(number = 1) {
     team1Runs: "", team1Wickets: "", team1Overs: "", team2Runs: "", team2Wickets: "", team2Overs: "",
     inningsData: [], battingScorecard: [], bowlingScorecard: [], lastUpdated: ""
   };
+}
+
+export function createChartSchedule(teams, existingMatches = []) {
+  const teamIds = Object.fromEntries(Object.entries(CHART_TEAM_GWIDS).map(([code, gwid]) => {
+    const matches = teams.filter(team => String(team.captain?.gwid || "").trim().padStart(3, "0") === gwid);
+    if (matches.length !== 1) throw new Error(`Chart team ${code} must match exactly one captain with GWID ${gwid}.`);
+    return [code, matches[0].id];
+  }));
+  const existingByNumber = new Map(existingMatches.map(match => [Number(match.number), match]));
+  const chartFixtures = [
+    ...CHART_POOL_FIXTURES.map(fixture => ({
+      number: fixture.number, team1Id: teamIds[fixture.team1], team2Id: teamIds[fixture.team2],
+      poolId: `pool-${fixture.pool.toLowerCase()}`, stage: `Pool ${fixture.pool}`
+    })),
+    ...CHART_KNOCKOUT_FIXTURES
+  ];
+  const scheduledNumbers = new Set(chartFixtures.map(fixture => fixture.number));
+  return [
+    ...chartFixtures.map(fixture => {
+      const existing = existingByNumber.get(fixture.number);
+      const teamsChanged = existing && (existing.team1Id !== fixture.team1Id || existing.team2Id !== fixture.team2Id);
+      const hasProgress = existing && (
+        existing.status !== "Upcoming" || existing.actualStart || existing.actualEnd || existing.result
+        || existing.inningsData?.some(innings => innings.events?.length)
+        || existing.battingScorecard?.length || existing.bowlingScorecard?.length
+        || existing.team1Runs !== "" || existing.team2Runs !== ""
+      );
+      if (teamsChanged && hasProgress) throw new Error(`Match ${fixture.number} already has score or result data and cannot be replaced.`);
+      return {
+        ...emptyMatch(fixture.number),
+        ...(existing || {}),
+        id: existing?.id || `chart-match-${fixture.number}`,
+        number: fixture.number,
+        team1Id: fixture.team1Id,
+        team2Id: fixture.team2Id,
+        poolId: fixture.poolId || "",
+        stage: fixture.stage,
+        ...(teamsChanged ? {
+          status: "Upcoming", date: "", time: "", venue: "", innings: 1, battingTeamId: "",
+          target: "", targetOverride: "", result: "", note: "", playerOfMatch: "",
+          actualStart: "", actualEnd: "", currentStriker: "", currentNonStriker: "", currentBowler: "",
+          team1Runs: "", team1Wickets: "", team1Overs: "", team2Runs: "", team2Wickets: "", team2Overs: "",
+          inningsData: [], battingScorecard: [], bowlingScorecard: [], lastUpdated: ""
+        } : {})
+      };
+    }),
+    ...existingMatches.filter(match => !scheduledNumbers.has(Number(match.number)))
+  ].sort((a, b) => a.number - b.number);
 }
 
 export function createDefaultTournament() {
