@@ -283,18 +283,19 @@ export function formatDuration(milliseconds) {
 }
 
 export function getMatchTiming(match, now = Date.now()) {
-  if (!match.actualStart) return { elapsedMs: null, estimatedEnd: "", durationText: "Not started" };
+  const expectedMs = Math.max(1, Number(match.expectedMinutes) || 90) * 60000;
+  if (!match.actualStart) return { elapsedMs: null, remainingMs: expectedMs, estimatedEnd: "", durationText: "Not started" };
   const start = new Date(match.actualStart).getTime();
   const end = match.actualEnd ? new Date(match.actualEnd).getTime() : now;
   const elapsedMs = Math.max(0, end - start);
-  if (match.actualEnd) return { elapsedMs, estimatedEnd: match.actualEnd, durationText: formatDuration(elapsedMs) };
+  const remainingMs = Math.max(0, expectedMs - elapsedMs);
+  if (match.actualEnd) return { elapsedMs, remainingMs, estimatedEnd: match.actualEnd, durationText: formatDuration(elapsedMs) };
   const score = getMatchScore(match);
   const completedBalls = (score.calc1?.legalBalls || 0) + (score.calc2?.legalBalls || 0);
   const totalBalls = Math.max(1, Number(match.oversPerInnings || 0) * 12);
-  const expectedMs = Math.max(1, Number(match.expectedMinutes) || 90) * 60000;
   const projectedMs = completedBalls >= 6 ? (elapsedMs / completedBalls) * totalBalls + Number(match.inningsBreakMinutes || 0) * 60000 : expectedMs;
   const estimatedEnd = new Date(start + Math.max(elapsedMs, projectedMs)).toISOString();
-  return { elapsedMs, estimatedEnd, durationText: formatDuration(elapsedMs) };
+  return { elapsedMs, remainingMs, estimatedEnd, durationText: formatDuration(elapsedMs) };
 }
 
 export function validateTournament(data) {

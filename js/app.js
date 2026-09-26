@@ -26,6 +26,40 @@ function formatDate(date, time = "") {
   if (!time) return dateText;
   return `${dateText} · ${new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(value)} IST`;
 }
+function formatTime(time) {
+  if (!time) return "To be announced";
+  const [hour, minute] = time.split(":").map(Number);
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${hour < 12 ? "am" : "pm"} IST`;
+}
+function formatMatchClock(milliseconds) {
+  if (milliseconds == null) return "—";
+  const totalSeconds = Math.floor(Math.max(0, milliseconds) / 1000);
+  return `${String(Math.floor(totalSeconds / 3600)).padStart(2, "0")}:${String(Math.floor(totalSeconds % 3600 / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+function matchFormat(match) {
+  const overs = Number(match.oversPerInnings) || 10;
+  const powerplay = Number(match.powerplayOvers) || 0;
+  const bowlerLimit = Number(match.maxOversPerBowler) || 0;
+  return `<div class="match-format" aria-label="Match format"><span><b>${overs} overs</b> per innings</span><span><b>${powerplay} overs</b> powerplay</span><span><b>${bowlerLimit ? `${bowlerLimit} overs` : "No limit"}</b> per bowler</span></div>`;
+}
+function scheduledStart(match) { return match.time ? formatTime(match.time) : "To be announced"; }
+function actualStartTime(match) {
+  return match.actualStart
+    ? `${new Intl.DateTimeFormat("en-IN", { hour:"numeric", minute:"2-digit", second:"2-digit", timeZone:"Asia/Kolkata" }).format(new Date(match.actualStart))} IST`
+    : "Not started";
+}
+function estimatedFinishTime(match, timing) {
+  if (match.actualEnd) return `${new Intl.DateTimeFormat("en-IN", { hour:"numeric", minute:"2-digit", timeZone:"Asia/Kolkata" }).format(new Date(match.actualEnd))} IST`;
+  return timing.estimatedEnd ? `${new Intl.DateTimeFormat("en-IN", { hour:"numeric", minute:"2-digit", timeZone:"Asia/Kolkata" }).format(new Date(timing.estimatedEnd))} IST` : "—";
+}
+function renderMatchClock(match) {
+  const timing = getMatchTiming(match);
+  const elapsed = $("#elapsedClock"), remaining = $("#remainingClock"), start = $("#actualStartClock"), finish = $("#finishClock");
+  if (elapsed) elapsed.textContent = `${timing.elapsedMs == null ? "Not started" : formatMatchClock(timing.elapsedMs)} / ${Number(match.expectedMinutes) || 90} min`;
+  if (remaining) remaining.textContent = match.actualEnd ? timing.durationText : `${formatMatchClock(timing.remainingMs)}${match.actualStart && timing.remainingMs === 0 ? " · TIME EXPIRED" : match.actualStart ? "" : " · NOT STARTED"}`;
+  if (start) start.textContent = actualStartTime(match);
+  if (finish) finish.textContent = estimatedFinishTime(match, timing);
+}
 function matchPlace(match) { return [pool(match.poolId)?.name || match.stage, match.venue].filter(Boolean).join(" · ") || "Details to be announced"; }
 function badge(status) { return `<span class="match-status status-${esc(status.toLowerCase())}">${esc(status)}</span>`; }
 function logoMarkup(item, className = "team-logo") { const source = item ? (teamLogos[item.id] || item.logoUrl) : ""; return source ? `<img class="${className}" src="${esc(source)}" alt="${esc(item.name)} logo">` : `<span class="${className} fallback-logo">${esc(item?.name?.slice(0, 2).toUpperCase() || "G")}</span>`; }
@@ -38,6 +72,7 @@ function scoreCard(match, prominent = false) {
   const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
   return `<article class="match-card ${prominent ? "live-card" : ""}">
     <div class="match-card-head"><span>Match ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} overs</span><div>${powerplay ? '<span class="powerplay-badge">POWERPLAY</span>' : ""}${badge(match.status)}</div></div>
+    ${matchFormat(match)}
     <div class="versus-score"><div>${logoMarkup(first, "score-logo")}<strong>${esc(teamName(match.team1Id))}</strong><b>${esc(score(match, "team1"))}</b></div><span>VS</span><div>${logoMarkup(second, "score-logo")}<strong>${esc(teamName(match.team2Id))}</strong><b>${esc(score(match, "team2"))}</b></div></div>
     <p class="match-meta">${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p>
     ${match.status === "Live" ? `<div class="live-metrics"><span>Innings ${esc(match.innings)}</span>${match.battingTeamId ? `<span>${esc(batting)} batting</span>` : ""}${activeCalc ? `<span>CRR ${activeCalc.runRate.toFixed(2)}</span>` : ""}${required != null ? `<span>Need ${required} from ${matchScore.ballsRemaining}</span>${matchScore.requiredRunRate != null ? `<span>RRR ${matchScore.requiredRunRate.toFixed(2)}</span>` : ""}` : ""}</div>` : ""}
@@ -47,7 +82,7 @@ function scoreCard(match, prominent = false) {
 }
 
 function fixtureRow(match) {
-  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))}</p><p>${esc(matchPlace(match))} · ${esc(match.oversPerInnings || 10)} overs · Powerplay ${esc(match.powerplayOvers || 0)} overs</p>${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
+  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))} · Start ${esc(scheduledStart(match))}</p><p>${esc(matchPlace(match))}</p>${matchFormat(match)}${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
 }
 
 function renderDashboard() {
@@ -153,14 +188,18 @@ function inningsPanel(match, innings) {
   if (!innings) return "";
   const calc = calculateInnings(innings, match.powerplayOvers);
   const battingTable = calc.battingStats.length ? `<div class="auto-score-table"><h4>Batting</h4><div class="table-scroll"><table><thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead><tbody>${calc.battingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong><small>${esc(item.dismissal)}</small></td><td>${item.runs}</td><td>${item.balls}</td><td>${item.fours}</td><td>${item.sixes}</td><td>${item.strikeRate.toFixed(1)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
-  const bowlingTable = calc.bowlingStats.length ? `<div class="auto-score-table"><h4>Bowling</h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td>${item.overs}</td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+  const bowlerLimit = Number(match.maxOversPerBowler) || 0;
+  const bowlingTable = calc.bowlingStats.length ? `<div class="auto-score-table"><h4>Bowling · <strong>${bowlerLimit ? `${bowlerLimit} overs maximum per bowler` : "No over limit"}</strong></h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td><strong>${item.overs}</strong></td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
   return `<section class="innings-panel"><div class="innings-heading"><div><span>${Number(innings.number) === 1 ? "1st" : "2nd"} innings</span><h3>${esc(teamName(innings.battingTeamId))}</h3></div><strong>${calc.runs}/${calc.wickets} <small>${calc.overs} ov</small></strong></div><div class="innings-rates"><span>Run rate <b>${calc.runRate.toFixed(2)}</b></span><span>Powerplay <b>${esc(match.powerplayOvers || 0)} overs</b></span></div><div class="over-strip">${calc.overGroups.length ? calc.overGroups.map(over => `<div class="over-block ${over.powerplay ? "powerplay-over" : ""}"><span>Over ${over.number}${over.powerplay ? " · PP" : ""}</span><div>${over.events.map(event => `<b title="${esc(event.commentary || "Delivery")}">${esc(eventToken(event))}</b>`).join("")}</div><small>${over.runs} runs${over.wickets ? ` · ${over.wickets}W` : ""}</small></div>`).join("") : `<p class="muted">Ball-by-ball scoring has not started.</p>`}</div>${battingTable}${bowlingTable}${calc.events.length ? `<div class="commentary-feed"><h4>Ball-by-ball</h4>${calc.events.slice().reverse().map(event => `<div class="commentary-row ${event.powerplay ? "powerplay-delivery" : ""}"><span>${esc(event.label)}</span><strong>${esc(eventToken(event))}</strong><p>${esc(event.commentary || `${event.bowler || "Bowler"} to ${event.batter || "Batter"}`)}</p></div>`).join("")}</div>` : ""}</section>`;
 }
 function openScore(id) {
   const match = tournament.matches.find(item => item.id === id); if (!match) return;
   const matchScore = getMatchScore(match), timing = getMatchTiming(match), activeCalc = Number(match.innings) === 2 ? matchScore.calc2 : matchScore.calc1;
   const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
-  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p></div><div class="broadcast-score">${scoreCard(match)}<div class="match-clock"><div><span>Elapsed</span><strong id="elapsedClock">${esc(timing.durationText)}</strong></div><div><span>${match.actualEnd ? "Finished" : "Estimated finish"}</span><strong id="finishClock">${timing.estimatedEnd ? new Intl.DateTimeFormat("en-IN", {hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(new Date(timing.estimatedEnd)) : "—"}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
+  const timerLabel = match.actualEnd ? "Match duration" : match.actualStart ? "Time remaining" : "Match timer";
+  const elapsedLabel = `${timing.elapsedMs == null ? "Not started" : formatMatchClock(timing.elapsedMs)} / ${Number(match.expectedMinutes) || 90} min`;
+  const timerValue = match.actualEnd ? timing.durationText : `${formatMatchClock(timing.remainingMs)}${match.actualStart && timing.remainingMs === 0 ? " · TIME EXPIRED" : match.actualStart ? "" : " · NOT STARTED"}`;
+  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date))} · Start ${esc(scheduledStart(match))} · ${esc(matchPlace(match))}</p></div>${matchFormat(match)}<div class="broadcast-score">${scoreCard(match)}<div class="match-clock match-clock-prominent"><div><span>Scheduled start</span><strong id="scheduledStartClock">${esc(scheduledStart(match))}</strong></div><div><span>Actual start</span><strong id="actualStartClock">${esc(actualStartTime(match))}</strong></div><div><span>Elapsed / allotted</span><strong id="elapsedClock">${esc(elapsedLabel)}</strong></div><div><span>${timerLabel}</span><strong id="remainingClock">${esc(timerValue)}</strong></div><div><span>Estimated finish</span><strong id="finishClock">${esc(estimatedFinishTime(match, timing))}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
   $("#scoreDialog").dataset.matchId = match.id; $("#scoreDialog").showModal();
 }
 
@@ -195,7 +234,5 @@ async function boot() {
 boot().catch(console.error);
 setInterval(() => {
   const dialog = $("#scoreDialog"), match = tournament.matches.find(item => item.id === dialog.dataset.matchId); if (!dialog.open || !match) return;
-  const timing = getMatchTiming(match); const elapsed = $("#elapsedClock"), finish = $("#finishClock");
-  if (elapsed) elapsed.textContent = timing.durationText;
-  if (finish) finish.textContent = timing.estimatedEnd ? new Intl.DateTimeFormat("en-IN", {hour:"numeric",minute:"2-digit",timeZone:"Asia/Kolkata"}).format(new Date(timing.estimatedEnd)) : "—";
-}, 30000);
+  renderMatchClock(match);
+}, 1000);

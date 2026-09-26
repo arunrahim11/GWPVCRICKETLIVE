@@ -12,6 +12,7 @@ A responsive Firebase-powered tournament manager and public live-score website.
 - Organizer one-click import of the 2026 player-list phone numbers by GWID
 - Organizer team-logo upload with a strict 100 KB limit
 - Live scoreboard with cricket-over validation and optional detailed scorecards
+- Public match format details and a live 90-minute elapsed/countdown clock
 - Dedicated ball-by-ball scoring desk with correction and undo
 - Automatic totals, wickets, legal overs, CRR, target, balls remaining, RRR, batter strike rate, and bowler economy
 - Per-match overs, powerplay, bowler limit, expected duration, innings break, and match timer settings

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -16,6 +16,15 @@ const first = calculateInnings(match.inningsData[0], match.powerplayOvers);
 assert.equal(first.runs, 15); assert.equal(first.wickets, 1); assert.equal(first.legalBalls, 6); assert.equal(first.overs, "1.0");
 assert.equal(first.events[1].label, "0.2wd"); assert.equal(first.events[2].label, "0.2nb");
 assert.equal(first.runRate, 15); assert.equal(first.battingStats[0].strikeRate.toFixed(1), "185.7"); assert.equal(first.bowlingStats[0].economy, 15);
+
+const notStartedTiming = getMatchTiming({ expectedMinutes:90 }, Date.parse("2026-09-29T02:00:00Z"));
+assert.equal(notStartedTiming.elapsedMs, null);
+assert.equal(notStartedTiming.remainingMs, 90 * 60 * 1000);
+const runningTiming = getMatchTiming({ actualStart:"2026-09-29T02:00:00.000Z", expectedMinutes:90, oversPerInnings:8, inningsData:[] }, Date.parse("2026-09-29T02:30:00Z"));
+assert.equal(runningTiming.elapsedMs, 30 * 60 * 1000);
+assert.equal(runningTiming.remainingMs, 60 * 60 * 1000);
+const expiredTiming = getMatchTiming({ actualStart:"2026-09-29T02:00:00.000Z", expectedMinutes:90, actualEnd:"2026-09-29T03:35:00.000Z" }, Date.parse("2026-09-29T03:40:00Z"));
+assert.equal(expiredTiming.remainingMs, 0);
 
 syncMatchSummary(match); assert.equal(match.target, 16);
 match.inningsData.push({ number: 2, battingTeamId: "t2", bowlingTeamId: "t1", events: [delivery("9", 6)] });
