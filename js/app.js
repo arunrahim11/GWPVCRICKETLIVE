@@ -2,7 +2,7 @@ import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, CHART
 import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
-let matchFilter = "Live";
+let matchFilter = "Upcoming";
 let teamLogos = {}, teammateSearch = "", teammateTeamFilter = "all";
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
