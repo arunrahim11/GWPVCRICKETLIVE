@@ -8,7 +8,7 @@ A responsive Firebase-powered tournament manager and public live-score website.
 - Nine editable team slots, custom pools, captains, and player lists
 - Unique GWID field and duplicate validation for every captain and player
 - Searchable public All Teammates directory with team number and phone numbers
-- Organizer team-logo upload with a strict 50 KB limit
+- Organizer team-logo upload with a strict 100 KB limit
 - Live scoreboard with cricket-over validation and optional detailed scorecards
 - Dedicated ball-by-ball scoring desk with correction and undo
 - Automatic totals, wickets, legal overs, CRR, target, balls remaining, RRR, batter strike rate, and bowler economy

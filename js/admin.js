@@ -191,12 +191,17 @@ $("#teamForm").addEventListener("submit", async event => {
 $("#teamLogoFile").addEventListener("change", async event => {
   const file = event.target.files?.[0]; if (!file) return;
   if (!file.type.startsWith("image/")) { showErrors(["Choose a JPG, PNG, WebP, or GIF image."]); event.target.value = ""; return; }
-  if (file.size > 50 * 1024) { showErrors([`Logo is ${(file.size / 1024).toFixed(1)} KB. Please choose an image of 50 KB or less.`]); event.target.value = ""; return; }
+  if (file.size > 100 * 1024) { showErrors([`Logo is ${(file.size / 1024).toFixed(1)} KB. Please choose an image of 100 KB or less.`]); event.target.value = ""; return; }
   const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
   const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
   $("#logoUploadStatus").textContent = "Uploading…";
   try { await services.firestoreSdk.setDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id), { teamId:team.id, dataUrl, fileName:file.name, sizeBytes:file.size, updatedAt:new Date().toISOString() }); teamLogos[team.id] = dataUrl; $("#logoUploadStatus").textContent = "Logo uploaded"; renderTeamEditor(); }
-  catch (error) { showErrors(["Logo upload failed. Publish the updated Firestore rules and try again."]); console.error(error); }
+  catch (error) {
+    showErrors([error.code === "permission-denied"
+      ? "Logo upload was denied. Publish firestore.rules in Firebase Console and confirm you are signed in with the configured organizer account."
+      : `Logo upload failed: ${error.message || "Check your connection and try again."}`]);
+    console.error(error);
+  }
   event.target.value = "";
 });
 $("#removeTeamLogoBtn").addEventListener("click", async () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team || !teamLogos[team.id]) return; await services.firestoreSdk.deleteDoc(services.firestoreSdk.doc(services.teamLogosRef, team.id)); delete teamLogos[team.id]; $("#logoUploadStatus").textContent = "Uploaded logo removed"; renderTeamEditor(); });

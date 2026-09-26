@@ -18,7 +18,7 @@ service cloud.firestore {
     }
 
     match /teamLogos/{teamId} {
-      // Small public team logos; only the organizer can upload or replace them.
+      // Public team logos; only the organizer can upload or replace them.
       allow read: if true;
       allow create, update, delete: if request.auth != null
         && request.auth.uid == "GHIfihuSOTTuUTriH6Jcb12ijZh2";
