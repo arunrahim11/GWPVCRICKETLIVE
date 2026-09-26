@@ -8,7 +8,7 @@ export const COMMITTEE_SECTIONS = [
 export const createId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 export function emptyTeam(serial) {
-  return { id: `team-${serial}`, serial, name: "", logoUrl: "", captain: { name: "", gwid: "", phone: "", publishPhone: false }, poolId: "", players: [] };
+  return { id: `team-${serial}`, serial, name: "", logoUrl: "", captain: { name: "", gwid: "", phone: "" }, poolId: "", players: [] };
 }
 
 export function emptyMatch(number = 1) {
@@ -26,7 +26,7 @@ export function emptyMatch(number = 1) {
 export function createDefaultTournament() {
   return {
     schemaVersion: 3,
-    settings: { title: "GWPV Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata", publishDirectoryPhones: true },
+    settings: { title: "GWPV Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata" },
     pools: [], teams: Array.from({ length: 9 }, (_, index) => emptyTeam(index + 1)), matches: [], committees: [],
     updatedAt: new Date().toISOString()
   };
@@ -53,7 +53,7 @@ export function normalizeTournament(raw) {
     return {
       ...emptyTeam(index + 1), id: source.id || `team-${index + 1}`, serial: Number(source.serial) || index + 1,
       name: source.name || "", logoUrl: source.logoUrl || source.photoUrl || "",
-      captain: { name: captainName, gwid: source.captain?.gwid || captainPlayer?.gwid || "", phone: source.captain?.phone || captainPlayer?.phone || "", publishPhone: Boolean(source.captain?.publishPhone) },
+      captain: { name: captainName, gwid: source.captain?.gwid || captainPlayer?.gwid || "", phone: source.captain?.phone || captainPlayer?.phone || "" },
       poolId: source.poolId || mappedPool?.id || "",
       players: (source.players || []).filter(player => String(player.name || "").trim().toLowerCase() !== String(captainName || "").trim().toLowerCase()).map(cleanPlayer)
     };

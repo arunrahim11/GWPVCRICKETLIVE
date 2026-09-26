@@ -23,7 +23,6 @@ async function persist(success = "Saved live") {
   try {
     const privateData = { teams: tournament.teams.map(team => ({ id: team.id, captainPhone: team.captain.phone || "", playerPhones: Object.fromEntries(team.players.map(player => [player.id, player.phone || ""])) })), updatedAt: tournament.updatedAt };
     const publicData = structuredClone(tournament);
-    publicData.teams.forEach(team => { if (!team.captain.publishPhone && !publicData.settings.publishDirectoryPhones) team.captain.phone = ""; if (!publicData.settings.publishDirectoryPhones) team.players.forEach(player => { player.phone = ""; }); });
     await services.firestoreSdk.setDoc(services.privateTournamentRef, privateData);
     await services.firestoreSdk.setDoc(services.tournamentRef, publicData);
     setSaveState(success, "saved"); setTimeout(() => setSaveState("Ready"), 2200); return true;
@@ -73,7 +72,7 @@ function renderTeamSelector() {
 }
 function renderTeamEditor() {
   const team = tournament.teams.find(item => item.id === selectedTeamId); if (!team) return;
-  fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainGwid: team.captain.gwid, captainPhone: team.captain.phone, publishPhone: team.captain.publishPhone });
+  fillForm($("#teamForm"), { serial: team.serial, name: team.name, poolId: team.poolId, logoUrl: team.logoUrl, captainName: team.captain.name, captainGwid: team.captain.gwid, captainPhone: team.captain.phone });
   $("#teamForm").elements.poolId.innerHTML = poolOptions(team.poolId);
   const captainRow = `<tr class="captain-admin-row"><td>1</td><td><input value="${attr(team.captain.name || "Enter captain above")}" disabled></td><td><input value="${attr(team.captain.gwid || "Enter GWID above")}" disabled></td><td><input value="Captain" disabled></td><td><input value="${attr(team.captain.phone || "")}" disabled></td><td><span class="captain-lock">Captain</span></td></tr>`;
   const additionalRows = team.players.map((player, index) => playerRow(player, index)).join("");
@@ -168,7 +167,7 @@ function parseScorecard(text, keys) {
 $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginError").textContent = ""; try { await services.authSdk.signInWithEmailAndPassword(services.auth, $("#loginEmail").value.trim(), $("#loginPassword").value); } catch (error) { $("#loginError").textContent = "Sign-in failed. Check the email, password, and Firebase Authentication setup."; console.error(error); } });
 $("#signOutBtn").addEventListener("click", () => services.authSdk.signOut(services.auth));
 $("#initializeBtn").addEventListener("click", async () => { tournament = createDefaultTournament(); await persist("Tournament initialized"); });
-$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); tournament.settings = { ...tournament.settings, ...formObject(event.currentTarget), publishDirectoryPhones: event.currentTarget.elements.publishDirectoryPhones.checked, timezone: "Asia/Kolkata" }; await persist(); });
+$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); tournament.settings = { ...tournament.settings, ...formObject(event.currentTarget), timezone: "Asia/Kolkata" }; await persist(); });
 
 $("#addPoolBtn").addEventListener("click", () => { tournament.pools.push({ id: createId("pool"), name: "", displayOrder: tournament.pools.length + 1 }); renderPools(); });
 $("#poolEditor").addEventListener("click", event => { const button = event.target.closest(".remove-pool"); if (!button) return; const id = button.closest("[data-pool-id]").dataset.poolId; if (tournament.teams.some(team => team.poolId === id) || tournament.matches.some(match => match.poolId === id)) { showErrors(["This pool is assigned to a team or match. Reassign it before removing the pool."]); return; } tournament.pools = tournament.pools.filter(pool => pool.id !== id); renderPools(); });
@@ -179,7 +178,7 @@ $("#addPlayerBtn").addEventListener("click", () => { const team = tournament.tea
 $("#playerEditor").addEventListener("click", event => { const button = event.target.closest(".remove-player"); if (!button) return; const id = button.closest("tr").dataset.playerId; const team = tournament.teams.find(item => item.id === selectedTeamId); team.players = team.players.filter(player => player.id !== id); renderTeamEditor(); });
 $("#teamForm").addEventListener("submit", async event => {
   event.preventDefault(); const form = event.currentTarget, values = formObject(form); const team = tournament.teams.find(item => item.id === selectedTeamId);
-  Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), gwid: values.captainGwid.trim(), phone: values.captainPhone.trim(), publishPhone: form.elements.publishPhone.checked } });
+  Object.assign(team, { serial: Number(values.serial), name: values.name.trim(), poolId: values.poolId, logoUrl: values.logoUrl.trim(), captain: { name: values.captainName.trim(), gwid: values.captainGwid.trim(), phone: values.captainPhone.trim() } });
   const captainKey = team.captain.name.trim().toLowerCase();
   team.players = $$("#playerEditor tr[data-player-id]").map((row, index) => ({ id: row.dataset.playerId, name: row.querySelector('[name="playerName"]').value.trim(), gwid: row.querySelector('[name="playerGwid"]').value.trim(), role: row.querySelector('[name="playerRole"]').value.trim(), phone: row.querySelector('[name="playerPhone"]').value.trim(), order: index + 1 })).filter(player => (player.name || player.gwid || player.role || player.phone) && (!captainKey || player.name.toLowerCase() !== captainKey));
   if (team.name && !team.captain.name) { showErrors(["Enter the captain’s name for this registered team."]); return; }
