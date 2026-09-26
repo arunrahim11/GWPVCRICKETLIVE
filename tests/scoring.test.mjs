@@ -39,6 +39,23 @@ assert(configurationErrors.some(error => error.includes("powerplay")));
 
 const migrated = normalizeTournament({ teams: [{ name:"Warriors", captain:"Vinod", players:[{name:"VINOD",role:"Captain"},{name:"Yani",role:"Vice Captain"}] }] });
 assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0].players[0].name, "Yani");
+const formatMigration = normalizeTournament({ matches: [
+  { number:1, oversPerInnings:8, powerplayOvers:2, maxOversPerBowler:2, expectedMinutes:90, inningsBreakMinutes:10 },
+  { number:2 },
+  { number:3, powerplayOvers:0, maxOversPerBowler:0 }
+] });
+assert.deepEqual(
+  [formatMigration.matches[0].oversPerInnings, formatMigration.matches[0].powerplayOvers, formatMigration.matches[0].maxOversPerBowler],
+  [8, 2, 2]
+);
+assert.deepEqual(
+  [formatMigration.matches[1].oversPerInnings, formatMigration.matches[1].powerplayOvers, formatMigration.matches[1].maxOversPerBowler],
+  [10, 3, 2]
+);
+assert.deepEqual(
+  [formatMigration.matches[2].powerplayOvers, formatMigration.matches[2].maxOversPerBowler],
+  [0, 0]
+);
 
 const phoneTeams = [{ captain: { gwid:"67", phone:"" }, players:[{ gwid:"125", phone:"old" },{ gwid:"999", name:"Vamshi Krishna", phone:"unchanged" }] }];
 assert.equal(updatePhonesByGwid(phoneTeams, { "067":"9000000000", "125":"9111111111", "310":"9222222222" }, { "310":["Vamshi Krishna"] }), 3);

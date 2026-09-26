@@ -42,6 +42,16 @@ function matchFormat(match) {
   const bowlerLimit = Number(match.maxOversPerBowler) || 0;
   return `<div class="match-format" aria-label="Match format"><span><b>${overs} overs</b> per innings</span><span><b>${powerplay} overs</b> powerplay</span><span><b>${bowlerLimit ? `${bowlerLimit} overs` : "No limit"}</b> per bowler</span></div>`;
 }
+function matchRules(match) {
+  const rules = [
+    ["Overs per innings", `${Number(match.oversPerInnings) || 10} overs`],
+    ["Powerplay", `${Number(match.powerplayOvers) || 0} overs`],
+    ["Maximum per bowler", Number(match.maxOversPerBowler) ? `${Number(match.maxOversPerBowler)} overs` : "No limit"],
+    ["Expected duration", `${Number(match.expectedMinutes) || 90} minutes`],
+    ["Innings break", `${Number(match.inningsBreakMinutes) || 0} minutes`]
+  ];
+  return `<section class="match-rules" aria-label="Match rules"><h3>Match rules</h3><div>${rules.map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div></section>`;
+}
 function scheduledStart(match) { return match.time ? formatTime(match.time) : "To be announced"; }
 function actualStartTime(match) {
   return match.actualStart
@@ -199,7 +209,7 @@ function openScore(id) {
   const timerLabel = match.actualEnd ? "Match duration" : match.actualStart ? "Time remaining" : "Match timer";
   const elapsedLabel = `${timing.elapsedMs == null ? "Not started" : formatMatchClock(timing.elapsedMs)} / ${Number(match.expectedMinutes) || 90} min`;
   const timerValue = match.actualEnd ? timing.durationText : `${formatMatchClock(timing.remainingMs)}${match.actualStart && timing.remainingMs === 0 ? " · TIME EXPIRED" : match.actualStart ? "" : " · NOT STARTED"}`;
-  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date))} · Start ${esc(scheduledStart(match))} · ${esc(matchPlace(match))}</p></div>${matchFormat(match)}<div class="broadcast-score">${scoreCard(match)}<div class="match-clock match-clock-prominent"><div><span>Scheduled start</span><strong id="scheduledStartClock">${esc(scheduledStart(match))}</strong></div><div><span>Actual start</span><strong id="actualStartClock">${esc(actualStartTime(match))}</strong></div><div><span>Elapsed / allotted</span><strong id="elapsedClock">${esc(elapsedLabel)}</strong></div><div><span>${timerLabel}</span><strong id="remainingClock">${esc(timerValue)}</strong></div><div><span>Estimated finish</span><strong id="finishClock">${esc(estimatedFinishTime(match, timing))}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
+  $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date))} · Start ${esc(scheduledStart(match))} · ${esc(matchPlace(match))}</p></div>${matchRules(match)}<div class="broadcast-score">${scoreCard(match)}<div class="match-clock match-clock-prominent"><div><span>Scheduled start</span><strong id="scheduledStartClock">${esc(scheduledStart(match))}</strong></div><div><span>Actual start</span><strong id="actualStartClock">${esc(actualStartTime(match))}</strong></div><div><span>Elapsed / allotted</span><strong id="elapsedClock">${esc(elapsedLabel)}</strong></div><div><span>${timerLabel}</span><strong id="remainingClock">${esc(timerValue)}</strong></div><div><span>Estimated finish</span><strong id="finishClock">${esc(estimatedFinishTime(match, timing))}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
   $("#scoreDialog").dataset.matchId = match.id; $("#scoreDialog").showModal();
 }
 

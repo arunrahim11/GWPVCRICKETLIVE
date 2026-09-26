@@ -140,9 +140,11 @@ export function normalizeTournament(raw) {
     ...emptyMatch(index + 1), ...match, id: match.id || createId("match"), number: Number(match.number) || index + 1,
     status: match.status === "Scheduled" || match.status === "Innings Break" ? (match.status === "Scheduled" ? "Upcoming" : "Live") : match.status || "Upcoming",
     innings: Number(match.innings) || 1,
-    oversPerInnings: Number(match.oversPerInnings) || 10, powerplayOvers: Number(match.powerplayOvers) || 0,
-    maxOversPerBowler: Number(match.maxOversPerBowler) || 0, expectedMinutes: Number(match.expectedMinutes) || 90,
-    inningsBreakMinutes: Number(match.inningsBreakMinutes) || 0,
+    oversPerInnings: match.oversPerInnings == null || match.oversPerInnings === "" ? 10 : Number(match.oversPerInnings) || 10,
+    powerplayOvers: match.powerplayOvers == null || match.powerplayOvers === "" ? 3 : Number(match.powerplayOvers) || 0,
+    maxOversPerBowler: match.maxOversPerBowler == null || match.maxOversPerBowler === "" ? 2 : Number(match.maxOversPerBowler) || 0,
+    expectedMinutes: match.expectedMinutes == null || match.expectedMinutes === "" ? 90 : Number(match.expectedMinutes) || 90,
+    inningsBreakMinutes: match.inningsBreakMinutes == null || match.inningsBreakMinutes === "" ? 10 : Number(match.inningsBreakMinutes) || 0,
     inningsData: Array.isArray(match.inningsData) ? match.inningsData.map((innings, inningsIndex) => ({
       number: innings.number || inningsIndex + 1, battingTeamId: innings.battingTeamId || "", bowlingTeamId: innings.bowlingTeamId || "",
       adjustmentRuns: Number(innings.adjustmentRuns) || 0, events: Array.isArray(innings.events) ? innings.events : []
