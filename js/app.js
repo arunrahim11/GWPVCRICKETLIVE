@@ -195,22 +195,44 @@ function eventToken(event) {
   return String(event.totalRuns || 0);
 }
 function inningsPanel(match, innings) {
-  if (!innings) return "";
+  if (!innings) {
+    if (match.status !== "Live") return "";
+    innings = {
+      number: Number(match.innings) || 1,
+      battingTeamId: match.battingTeamId,
+      bowlingTeamId: match.battingTeamId === match.team1Id ? match.team2Id : match.team1Id,
+      events: []
+    };
+  }
   const calc = calculateInnings(innings, match.powerplayOvers);
   const battingTable = calc.battingStats.length ? `<div class="auto-score-table"><h4>Batting</h4><div class="table-scroll"><table><thead><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead><tbody>${calc.battingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong><small>${esc(item.dismissal)}</small></td><td>${item.runs}</td><td>${item.balls}</td><td>${item.fours}</td><td>${item.sixes}</td><td>${item.strikeRate.toFixed(1)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
   const bowlerLimit = Number(match.maxOversPerBowler) || 0;
-  const bowlingTable = calc.bowlingStats.length ? `<div class="auto-score-table"><h4>Bowling · <strong>${bowlerLimit ? `${bowlerLimit} overs maximum per bowler` : "No over limit"}</strong></h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td><strong>${item.overs}</strong></td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>` : "";
-  return `<section class="innings-panel"><div class="innings-heading"><div><span>${Number(innings.number) === 1 ? "1st" : "2nd"} innings</span><h3>${esc(teamName(innings.battingTeamId))}</h3></div><strong>${calc.runs}/${calc.wickets} <small>${calc.overs} ov</small></strong></div><div class="innings-rates"><span>Run rate <b>${calc.runRate.toFixed(2)}</b></span><span>Powerplay <b>${esc(match.powerplayOvers || 0)} overs</b></span></div><div class="over-strip">${calc.overGroups.length ? calc.overGroups.map(over => `<div class="over-block ${over.powerplay ? "powerplay-over" : ""}"><span>Over ${over.number}${over.powerplay ? " · PP" : ""}</span><div>${over.events.map(event => `<b title="${esc(event.commentary || "Delivery")}">${esc(eventToken(event))}</b>`).join("")}</div><small>${over.runs} runs${over.wickets ? ` · ${over.wickets}W` : ""}</small></div>`).join("") : `<p class="muted">Ball-by-ball scoring has not started.</p>`}</div>${battingTable}${bowlingTable}${calc.events.length ? `<div class="commentary-feed"><h4>Ball-by-ball</h4>${calc.events.slice().reverse().map(event => `<div class="commentary-row ${event.powerplay ? "powerplay-delivery" : ""}"><span>${esc(event.label)}</span><strong>${esc(eventToken(event))}</strong><p>${esc(event.commentary || `${event.bowler || "Bowler"} to ${event.batter || "Batter"}`)}</p></div>`).join("")}</div>` : ""}</section>`;
+  const bowlingTable = `<div class="auto-score-table"><h4>Bowling · <strong>${bowlerLimit ? `${bowlerLimit} overs maximum per bowler` : "No over limit"}</strong></h4><div class="table-scroll"><table><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>${calc.bowlingStats.length ? calc.bowlingStats.map(item => `<tr><td><strong>${esc(item.player)}</strong></td><td><strong>${item.overs}</strong></td><td>${item.runs}</td><td>${item.wickets}</td><td>${item.economy.toFixed(2)}</td></tr>`).join("") : `<tr><td colspan="5" class="muted">Bowling figures will appear after the first delivery.</td></tr>`}</tbody></table></div></div>`;
+  const totalBalls = Math.max(0, Number(match.oversPerInnings) || 0) * 6;
+  const ballsRemaining = Math.max(0, totalBalls - calc.legalBalls);
+  const currentBowler = match.currentBowler || calc.events.at(-1)?.bowler || "";
+  const bowlerStats = calc.bowlingStats.find(item => item.player === currentBowler);
+  const bowlerBalls = bowlerStats?.legalBalls || 0;
+  const powerplayBalls = Math.max(0, Number(match.powerplayOvers) || 0) * 6;
+  const striker = match.currentStriker || "";
+  const nonStriker = match.currentNonStriker || "";
+  return `<section class="innings-panel"><div class="innings-heading"><div><span>${Number(innings.number) === 1 ? "1st" : "2nd"} innings</span><h3>${esc(teamName(innings.battingTeamId))}</h3></div><strong>${calc.runs}/${calc.wickets} <small>${calc.overs} / ${Number(match.oversPerInnings) || 10} ov</small></strong></div><div class="live-innings-summary"><div><span>Score</span><strong>${calc.runs}/${calc.wickets}</strong></div><div><span>Overs bowled</span><strong>${calc.overs} / ${Number(match.oversPerInnings) || 10}</strong></div><div><span>Balls</span><strong>${calc.legalBalls} bowled · ${ballsRemaining} left</strong></div><div><span>Powerplay</span><strong>${Math.min(calc.legalBalls, powerplayBalls)}/${powerplayBalls} balls</strong></div><div><span>Batting</span><strong>${esc([striker, nonStriker].filter(Boolean).join(" · ") || "Batter names not set")}</strong></div><div><span>Current bowler</span><strong>${esc(currentBowler || "Not selected")}${currentBowler ? ` · ${ballsToOverCount(bowlerBalls)} ov (${bowlerStats?.runs || 0}-${bowlerStats?.wickets || 0})` : ""}</strong>${currentBowler && bowlerLimit ? `<small>${Math.max(0, bowlerLimit * 6 - bowlerBalls)} balls remaining in ${bowlerLimit}-over limit</small>` : ""}</div></div><div class="innings-rates"><span>Run rate <b>${calc.runRate.toFixed(2)}</b></span><span>Powerplay <b>${esc(match.powerplayOvers || 0)} overs</b></span></div><div class="over-strip">${calc.overGroups.length ? calc.overGroups.map(over => `<div class="over-block ${over.powerplay ? "powerplay-over" : ""}"><span>Over ${over.number}${over.powerplay ? " · PP" : ""}</span><div>${over.events.map(event => `<b title="${esc(event.commentary || "Delivery")}">${esc(eventToken(event))}</b>`).join("")}</div><small>${over.runs} runs${over.wickets ? ` · ${over.wickets}W` : ""}</small></div>`).join("") : `<p class="muted">Ball-by-ball scoring has not started.</p>`}</div>${battingTable}${bowlingTable}${calc.events.length ? `<div class="commentary-feed"><h4>Ball-by-ball</h4>${calc.events.slice().reverse().map(event => `<div class="commentary-row ${event.powerplay ? "powerplay-delivery" : ""}"><span>${esc(event.label)}</span><strong>${esc(eventToken(event))}</strong><p>${esc(event.commentary || `${event.bowler || "Bowler"} to ${event.batter || "Batter"}`)}</p></div>`).join("")}</div>` : ""}</section>`;
 }
+function ballsToOverCount(balls) { return `${Math.floor(balls / 6)}.${balls % 6}`; }
 function openScore(id) {
   const match = tournament.matches.find(item => item.id === id); if (!match) return;
+  renderScoreDialog(match, true);
+}
+function renderScoreDialog(match, show = false) {
   const matchScore = getMatchScore(match), timing = getMatchTiming(match), activeCalc = Number(match.innings) === 2 ? matchScore.calc2 : matchScore.calc1;
   const powerplay = match.status === "Live" && activeCalc && activeCalc.legalBalls < Number(match.powerplayOvers || 0) * 6;
   const timerLabel = match.actualEnd ? "Match duration" : match.actualStart ? "Time remaining" : "Match timer";
   const elapsedLabel = `${timing.elapsedMs == null ? "Not started" : formatMatchClock(timing.elapsedMs)} / ${Number(match.expectedMinutes) || 90} min`;
   const timerValue = match.actualEnd ? timing.durationText : `${formatMatchClock(timing.remainingMs)}${match.actualStart && timing.remainingMs === 0 ? " · TIME EXPIRED" : match.actualStart ? "" : " · NOT STARTED"}`;
   $("#scoreDialogContent").innerHTML = `<div class="score-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · ${esc(match.oversPerInnings || 10)} OVERS</p><h2>${esc(teamName(match.team1Id))} vs ${esc(teamName(match.team2Id))}</h2><div class="score-head-badges">${badge(match.status)}${powerplay ? '<span class="powerplay-badge">POWERPLAY ACTIVE</span>' : ""}</div><p>${esc(formatDate(match.date))} · Start ${esc(scheduledStart(match))} · ${esc(matchPlace(match))}</p></div>${matchRules(match)}<div class="broadcast-score">${scoreCard(match)}<div class="match-clock match-clock-prominent"><div><span>Scheduled start</span><strong id="scheduledStartClock">${esc(scheduledStart(match))}</strong></div><div><span>Actual start</span><strong id="actualStartClock">${esc(actualStartTime(match))}</strong></div><div><span>Elapsed / allotted</span><strong id="elapsedClock">${esc(elapsedLabel)}</strong></div><div><span>${timerLabel}</span><strong id="remainingClock">${esc(timerValue)}</strong></div><div><span>Estimated finish</span><strong id="finishClock">${esc(estimatedFinishTime(match, timing))}</strong></div></div></div>${match.note ? `<p class="match-note">${esc(match.note)}</p>` : ""}${inningsPanel(match, matchScore.innings1)}${inningsPanel(match, matchScore.innings2)}${scoreTable("Batting scorecard", match.battingScorecard, [{key:"player",label:"Batter"},{key:"runs",label:"R"},{key:"balls",label:"B"},{key:"fours",label:"4s"},{key:"sixes",label:"6s"}])}${scoreTable("Bowling scorecard", match.bowlingScorecard, [{key:"player",label:"Bowler"},{key:"overs",label:"O"},{key:"runs",label:"R"},{key:"wickets",label:"W"}])}`;
-  $("#scoreDialog").dataset.matchId = match.id; $("#scoreDialog").showModal();
+  const dialog = $("#scoreDialog");
+  dialog.dataset.matchId = match.id;
+  if (show) dialog.showModal();
 }
 
 function renderAll() { renderDashboard(); renderTeams(); renderTeammates(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
@@ -237,6 +259,9 @@ async function boot() {
   if (!services) { $("#connectionBadge").innerHTML = "<span></span> Setup required"; return; }
   services.firestoreSdk.onSnapshot(services.tournamentRef, snapshot => {
     tournament = normalizeTournament(snapshot.exists() ? snapshot.data() : null); renderAll();
+    const dialog = $("#scoreDialog");
+    const openMatch = dialog.open && tournament.matches.find(item => item.id === dialog.dataset.matchId);
+    if (openMatch) renderScoreDialog(openMatch);
     $("#connectionBadge").innerHTML = "<span></span> Live"; $("#connectionBadge").className = "status-pill saved";
   }, error => { $("#connectionBadge").innerHTML = "<span></span> Offline"; console.error(error); });
   services.firestoreSdk.onSnapshot(services.teamLogosRef, snapshot => { teamLogos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url)); renderAll(); }, console.error);
