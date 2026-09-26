@@ -81,6 +81,19 @@ export function normalizeTournament(raw) {
   };
 }
 
+export function updatePhonesByGwid(teams, phoneByGwid) {
+  let updated = 0;
+  teams.forEach(team => {
+    [team.captain, ...team.players].forEach(person => {
+      const gwid = String(person.gwid || "").trim().padStart(3, "0");
+      if (!Object.hasOwn(phoneByGwid, gwid)) return;
+      person.phone = phoneByGwid[gwid];
+      updated += 1;
+    });
+  });
+  return updated;
+}
+
 export function isValidOvers(value) {
   return value === "" || value == null || /^\d+\.[0-5]$/.test(String(value).trim());
 }

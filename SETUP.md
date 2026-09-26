@@ -37,7 +37,7 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 1. Sign in on `admin.html`. If the database is empty, select **Initialize tournament**.
 2. **Settings:** enter the editable tournament name, venue, dates, and announcement.
 3. **Pools:** create and name any number of pools, then save.
-4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, captain GWID, optional logo URL, assign a pool, and add up to 13 other players. Enter a unique GWID for every player. The captain is always displayed first, making 14 players total.
+4. **Teams:** open each of the nine slots, enter the unique serial/name, captain, captain GWID, optional logo URL, assign a pool, and add up to 13 other players. Enter a unique GWID for every player. The captain is always displayed first, making 14 players total. Use **Import Word-list phone numbers** to apply the provided 2026 phone list to matching GWIDs; confirm to publish those numbers in All Teammates.
 5. Upload a JPG, PNG, WebP, or GIF team logo directly in the team editor. The file must be 100 KB or smaller. The logo appears on team cards, live scores, match scoreboards, and the player directory.
 6. Captain and player phone numbers are displayed in the public All Teammates directory.
 7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save.

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament, normalizeTournament } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -30,6 +30,12 @@ assert(configurationErrors.some(error => error.includes("powerplay")));
 
 const migrated = normalizeTournament({ teams: [{ name:"Warriors", captain:"Vinod", players:[{name:"VINOD",role:"Captain"},{name:"Yani",role:"Vice Captain"}] }] });
 assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0].players[0].name, "Yani");
+
+const phoneTeams = [{ captain: { gwid:"67", phone:"" }, players:[{ gwid:"125", phone:"old" },{ gwid:"999", phone:"unchanged" }] }];
+assert.equal(updatePhonesByGwid(phoneTeams, { "067":"9000000000", "125":"9111111111" }), 2);
+assert.equal(phoneTeams[0].captain.phone, "9000000000");
+assert.equal(phoneTeams[0].players[0].phone, "9111111111");
+assert.equal(phoneTeams[0].players[1].phone, "unchanged");
 
 const gwidTeams = Array.from({ length:9 }, (_,index) => ({ name:"", serial:index+1, captain:{name:"",gwid:""}, players:[] }));
 gwidTeams[0] = { name:"Warriors", serial:1, captain:{name:"Vinod",gwid:"GWPV001"}, players:[{name:"Yani",gwid:"gwpv001"}] };

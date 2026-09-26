@@ -1,5 +1,23 @@
-import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration } from "./data.js";
+import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration, updatePhonesByGwid } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
+
+const wordListPhonesByGwid = {
+  "653":"9966748916","232":"9390193904","730":"8801874432","420":"9912782827","726":"9849146562",
+  "417":"9848323362","717":"7674873574","179":"9912432189","441":"9700600837","177":"9989836653",
+  "481":"8466931680","549":"9505003040","578":"7036122219","565":"9849317331","445":"6303855745",
+  "667":"9849570221","689":"9866003665","461":"7093534645","691":"9908630488","705":"9573100998",
+  "067":"8686269020","231":"9848046949","218":"9885560818","381":"7337451420","602":"7416542300",
+  "150":"9849510350","719":"9533451522","627":"9493041041","663":"8897388208","433":"8976158790",
+  "210":"8464090274","029":"7303339680","305":"9393502053","452":"7799465758","206":"9866700655",
+  "040":"9848522507","483":"9553519315","416":"9154915451","415":"8179217806","125":"9848979420",
+  "236":"9866561176","282":"9000717247","080":"9502487715","740":"9949426355","247":"9701198288",
+  "180":"9959203644","572":"9177216248","736":"9849079785","408":"8523011255","205":"8328350020",
+  "439":"9550740671","204":"9494282164","310":"9849189045","732":"9676757474","203":"8143430604",
+  "693":"8886411173","598":"9948057285","176":"9177937943","551":"9505587750","605":"9676294673",
+  "589":"9177553020","018":"9908335802","552":"9704151229","569":"9848974098","563":"9391612833",
+  "576":"8341159705","459":"8074641296","455":"9542215321","211":"9966734522","066":"8106542126",
+  "611":"9949370694","685":"9989641051","541":"9000237002","583":"9394765699"
+};
 
 let services, tournament, unsubscribe, unsubscribePrivate, publicSnapshot, privateSnapshot = { teams: [] };
 let selectedTeamId = "team-1", selectedMatchId = "", selectedScoreMatchId = "", selectedMemberId = "", selectedInningsNumber = 1;
@@ -174,6 +192,13 @@ $("#poolEditor").addEventListener("click", event => { const button = event.targe
 $("#savePoolsBtn").addEventListener("click", async () => { tournament.pools = $$("#poolEditor [data-pool-id]").map((row, index) => ({ id: row.dataset.poolId, name: row.querySelector('[name="name"]').value.trim(), displayOrder: Number(row.querySelector('[name="displayOrder"]').value) || index + 1 })); if (tournament.pools.some(pool => !pool.name)) { showErrors(["Every pool needs a name."]); return; } const names = tournament.pools.map(pool => pool.name.toLowerCase()); if (new Set(names).size !== names.length) { showErrors(["Pool names must be unique."]); return; } await persist(); });
 
 $("#teamSelector").addEventListener("change", event => { selectedTeamId = event.target.value; renderTeamEditor(); });
+$("#importDirectoryPhonesBtn").addEventListener("click", async () => {
+  const matched = tournament.teams.flatMap(team => [team.captain, ...team.players]).filter(person => Object.hasOwn(wordListPhonesByGwid, String(person.gwid || "").trim().padStart(3, "0"))).length;
+  if (!matched) { showErrors(["No players in the current roster match the Word-list IDs."]); return; }
+  if (!confirm(`Publish phone numbers for ${matched} players matched by GWID? These numbers will be visible in the public All Teammates directory.`)) return;
+  const updated = updatePhonesByGwid(tournament.teams, wordListPhonesByGwid);
+  if (await persist(`${updated} directory phone numbers published`)) renderTeamEditor();
+});
 $("#addPlayerBtn").addEventListener("click", () => { const team = tournament.teams.find(item => item.id === selectedTeamId); if (team.players.length >= 13) { showErrors(["This team already has 14 players: one captain and 13 additional players."]); return; } team.players.push({ id: createId("player"), name: "", gwid: "", role: "", phone: "", order: team.players.length + 1 }); renderTeamEditor(); });
 $("#playerEditor").addEventListener("click", event => { const button = event.target.closest(".remove-player"); if (!button) return; const id = button.closest("tr").dataset.playerId; const team = tournament.teams.find(item => item.id === selectedTeamId); team.players = team.players.filter(player => player.id !== id); renderTeamEditor(); });
 $("#teamForm").addEventListener("submit", async event => {
