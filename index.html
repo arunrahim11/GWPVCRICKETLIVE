@@ -6,7 +6,7 @@
   <title>GWPV Cricket Tournament</title><link rel="icon" href="society-logo.jpg" type="image/jpeg">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css"><link rel="stylesheet" href="css/schedule.css"><link rel="stylesheet" href="css/match-view.css">
+  <link rel="stylesheet" href="css/styles.css"><link rel="stylesheet" href="css/schedule.css"><link rel="stylesheet" href="css/match-view.css"><link rel="stylesheet" href="css/home.css">
 </head>
 <body>
   <header class="site-header">
@@ -32,6 +32,19 @@
         <article><strong id="teamCount">0</strong><span>Registered teams</span></article><article><strong id="matchCount">0</strong><span>Total matches</span></article>
         <article><strong id="completedCount">0</strong><span>Completed</span></article><article><strong id="remainingCount">0</strong><span>Remaining</span></article>
       </div>
+      <section class="home-poster-section" aria-labelledby="tournamentPosterTitle">
+        <div class="home-poster-heading"><p class="eyebrow">GWPV CRICKET 2026</p><h2 id="tournamentPosterTitle">Tournament poster &amp; prizes</h2><p>Official tournament details from the association.</p></div>
+        <div class="home-poster-layout">
+          <img class="tournament-poster" src="tournament-poster.jpg" alt="GWPV Cricket Tournament 2026 poster. Tournament dates: September 29, 30 and October 1, 2026. First prize Rs 15,116; second prize Rs 10,116; team fee Rs 4,000; each participant Rs 100. Venue: TVV Ground, Uppal." width="1116" height="2000">
+          <div class="prize-details" aria-label="Tournament fees and prize amounts">
+            <article><span>1st prize</span><strong>Rs 15,116</strong></article>
+            <article><span>2nd prize</span><strong>Rs 10,116</strong></article>
+            <article><span>Team fee</span><strong>Rs 4,000</strong></article>
+            <article><span>Each participant</span><strong>Rs 100</strong></article>
+            <p>29 September–1 October 2026<br>TVV Ground, Uppal</p>
+          </div>
+        </div>
+      </section>
       <div class="content-section">
         <div class="section-heading"><div><p class="eyebrow">LIVE NOW</p><h2>Live matches</h2></div><span id="lastUpdated" class="updated-label">Waiting for data</span></div>
         <div id="liveMatches" class="card-grid"></div>
