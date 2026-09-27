@@ -97,8 +97,9 @@ function fixtureRow(match) {
 
 function renderDashboard() {
   const settings = tournament.settings;
-  $("#tournamentTitle").textContent = settings.title || "GWPV Cricket Tournament";
-  document.title = `${settings.title || "GWPV Cricket Tournament"} · Live`;
+  const tournamentTitle = (settings.title || "GWPVW Cricket Tournament").replace(/^GWPV\b/i, "GWPVW");
+  $("#tournamentTitle").textContent = tournamentTitle;
+  document.title = `${tournamentTitle} · Live`;
   const dates = settings.startDate ? `${formatDate(settings.startDate)}${settings.endDate && settings.endDate !== settings.startDate ? ` – ${formatDate(settings.endDate)}` : ""}` : "Dates to be announced";
   const venue = settings.venue || "Venue to be announced";
   const venueMarkup = esc(venue).replace(/^TVV\s+GROUND\b/i, match => `<strong>${match.toUpperCase()}</strong>`);

@@ -119,7 +119,7 @@ export function createChartSchedule(teams, existingMatches = []) {
 export function createDefaultTournament() {
   return {
     schemaVersion: 3,
-    settings: { title: "GWPV Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata" },
+    settings: { title: "GWPVW Cricket Tournament", venue: "", startDate: "", endDate: "", announcement: "", timezone: "Asia/Kolkata" },
     pools: [], teams: Array.from({ length: 9 }, (_, index) => emptyTeam(index + 1)), matches: [], committees: [],
     updatedAt: new Date().toISOString()
   };
