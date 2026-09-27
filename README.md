@@ -1,4 +1,4 @@
-# GWPV Cricket Tournament
+# GWPVW Cricket Tournament
 
 A responsive Firebase-powered tournament manager and public live-score website.
 

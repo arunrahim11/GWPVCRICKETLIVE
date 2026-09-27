@@ -1,4 +1,4 @@
-# GWPV Cricket — Setup, Publishing, and Admin Guide
+# GWPVW Cricket — Setup, Publishing, and Admin Guide
 
 The Firebase web configuration and organizer UID are already included. This static site loads Firebase directly, so `npm install firebase` is not required.
 

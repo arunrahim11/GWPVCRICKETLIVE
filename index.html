@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#071a16"><meta name="description" content="Live tournament information for GWPV Cricket.">
-  <title>GWPV Cricket Tournament</title><link rel="icon" href="society-logo.jpg" type="image/jpeg">
+  <meta name="theme-color" content="#071a16"><meta name="description" content="Live tournament information for GWPVW Cricket.">
+  <title>GWPVW Cricket Tournament</title><link rel="icon" href="society-logo.jpg" type="image/jpeg">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css"><link rel="stylesheet" href="css/schedule.css"><link rel="stylesheet" href="css/match-view.css"><link rel="stylesheet" href="css/home.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#dashboard"><img class="brand-logo" src="society-logo.jpg" alt="Warangal Photo &amp; Video Graphers Welfare Society logo"><span><strong>GWPV</strong><small>CRICKET LIVE</small></span></a>
+    <a class="brand" href="#dashboard"><img class="brand-logo" src="society-logo.jpg" alt="GWPVW Society logo"><span><strong>GWPVW</strong><small>CRICKET LIVE</small></span></a>
     <div class="header-actions"><div id="connectionBadge" class="status-pill"><span></span> Connecting</div><a class="admin-link" href="admin.html">Admin Login</a></div>
   </header>
 
@@ -25,7 +25,7 @@
   <main>
     <section id="dashboard" class="page-section active">
       <div class="hero compact-hero">
-        <div class="hero-copy"><p class="eyebrow">GWPV CRICKET</p><h1 id="tournamentTitle">GWPV Cricket Tournament</h1><p id="tournamentMeta" class="hero-subtitle">Tournament details will appear here.</p><p id="announcement" class="announcement hidden"></p></div>
+        <div class="hero-copy"><p class="eyebrow">GWPVW CRICKET</p><h1 id="tournamentTitle">GWPVW Cricket Tournament</h1><p id="tournamentMeta" class="hero-subtitle">Tournament details will appear here.</p><p id="announcement" class="announcement hidden"></p></div>
         <div class="hero-ball" aria-hidden="true"><span></span></div>
       </div>
       <div class="quick-stats" aria-label="Tournament summary">
@@ -33,9 +33,9 @@
         <article><strong id="completedCount">0</strong><span>Completed</span></article><article><strong id="remainingCount">0</strong><span>Remaining</span></article>
       </div>
       <section class="home-poster-section" aria-labelledby="tournamentPosterTitle">
-        <div class="home-poster-heading"><p class="eyebrow">GWPV CRICKET 2026</p><h2 id="tournamentPosterTitle">Tournament poster &amp; prizes</h2><p>Official tournament details from the association.</p></div>
+        <div class="home-poster-heading"><p class="eyebrow">GWPVW CRICKET 2026</p><h2 id="tournamentPosterTitle">Tournament poster &amp; prizes</h2><p>Official tournament details from the association.</p></div>
         <div class="home-poster-layout">
-          <img class="tournament-poster" src="tournament-poster.jpg" alt="GWPV Cricket Tournament 2026 poster. Tournament dates: September 29, 30 and October 1, 2026. First prize Rs 15,116; second prize Rs 10,116; team fee Rs 4,000; each participant Rs 100. Venue: TVV Ground, Uppal." width="1116" height="2000">
+          <img class="tournament-poster" src="tournament-poster.jpg" alt="GWPVW Cricket Tournament 2026 poster. Tournament dates: September 29, 30 and October 1, 2026. First prize Rs 15,116; second prize Rs 10,116; team fee Rs 4,000; each participant Rs 100. Venue: TVV Ground, Uppal." width="1116" height="2000">
           <div class="prize-details" aria-label="Tournament fees and prize amounts">
             <article><span>1st prize</span><strong>Rs 15,116</strong></article>
             <article><span>2nd prize</span><strong>Rs 10,116</strong></article>
@@ -63,7 +63,7 @@
     </section>
 
     <section id="teammates" class="page-section content-section">
-      <div class="section-heading"><div><p class="eyebrow">GWPV PLAYER DIRECTORY</p><h1>All Teammates</h1></div></div>
+      <div class="section-heading"><div><p class="eyebrow">GWPVW PLAYER DIRECTORY</p><h1>All Teammates</h1></div></div>
       <div class="directory-tools"><label>Search players<input id="teammateSearch" type="search" placeholder="Search name, GWID or team"></label><label>Filter team<select id="teammateTeamFilter"><option value="all">All teams</option></select></label></div>
       <div class="directory-card"><div class="table-scroll"><table class="teammate-table"><thead><tr><th>#</th><th>Player</th><th>GWID</th><th>Team No.</th><th>Team</th><th>Role</th><th>Phone</th></tr></thead><tbody id="teammateDirectory"></tbody></table></div></div>
     </section>
@@ -75,7 +75,7 @@
     </section>
 
     <section id="committee" class="page-section content-section">
-      <div class="committee-hero"><p class="eyebrow">WITH GRATITUDE</p><h1>The Team Behind GWPV Cricket</h1><p>Recognizing the people who organize, support, and make the tournament possible.</p></div>
+      <div class="committee-hero"><p class="eyebrow">WITH GRATITUDE</p><h1>The Team Behind GWPVW Cricket</h1><p>Recognizing the people who organize, support, and make the tournament possible.</p></div>
       <div id="committeeContent"></div>
     </section>
   </main>
@@ -83,7 +83,7 @@
   <dialog id="teamDialog" class="content-dialog"><button class="dialog-close" aria-label="Close">×</button><div id="teamDialogContent"></div></dialog>
   <dialog id="scoreDialog" class="content-dialog wide-dialog"><button class="dialog-close" aria-label="Close">×</button><div id="scoreDialogContent"></div></dialog>
   <nav class="bottom-nav" aria-label="Mobile navigation"><button class="active" data-route="dashboard"><span>⌂</span>Dashboard</button><button data-route="teams"><span>♟</span>Teams</button><button data-route="teammates"><span>☷</span>Players</button><button data-route="matches"><span>▦</span>Matches</button><button data-route="committee"><span>★</span>Committee</button></nav>
-  <footer><p>GWPV Cricket Tournament · <a href="admin.html">Organizer login</a></p></footer>
+  <footer><p>GWPVW Cricket Tournament · <a href="admin.html">Organizer login</a></p></footer>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

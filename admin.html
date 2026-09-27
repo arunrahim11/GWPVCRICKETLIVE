@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#071a16"><meta name="robots" content="noindex,nofollow">
-  <title>Admin · GWPV Cricket</title><link rel="icon" href="society-logo.jpg" type="image/jpeg">
+  <title>Admin · GWPVW Cricket</title><link rel="icon" href="society-logo.jpg" type="image/jpeg">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css"><link rel="stylesheet" href="css/admin-upload.css">
 </head>
 <body class="admin-body">
-  <header class="site-header admin-header"><a class="brand" href="index.html"><img class="brand-logo" src="society-logo.jpg" alt="Warangal Photo &amp; Video Graphers Welfare Society logo"><span><strong>GWPV</strong><small>ORGANIZER</small></span></a><div class="header-actions"><a class="admin-link" href="index.html">Public site</a><button id="signOutBtn" class="ghost-btn small hidden">Sign out</button></div></header>
+  <header class="site-header admin-header"><a class="brand" href="index.html"><img class="brand-logo" src="society-logo.jpg" alt="GWPVW Society logo"><span><strong>GWPVW</strong><small>ORGANIZER</small></span></a><div class="header-actions"><a class="admin-link" href="index.html">Public site</a><button id="signOutBtn" class="ghost-btn small hidden">Sign out</button></div></header>
   <main class="admin-main">
     <section id="setupNotice" class="notice-card hidden"><h2>Firebase setup required</h2><p>Check <code>js/firebase-config.js</code>, Firebase Authentication, and the deployed Firestore rules.</p><a class="primary-btn inline-btn" href="SETUP.md">Open setup guide</a></section>
-    <section id="loginPanel" class="login-card hidden"><p class="eyebrow">SECURE ORGANIZER ACCESS</p><h1>Sign in to manage GWPV Cricket</h1><form id="loginForm"><label>Email<input id="loginEmail" type="email" autocomplete="username" required></label><label>Password<input id="loginPassword" type="password" autocomplete="current-password" required minlength="6"></label><button class="primary-btn" type="submit">Sign in</button><p id="loginError" class="form-error" role="alert"></p></form></section>
+    <section id="loginPanel" class="login-card hidden"><p class="eyebrow">SECURE ORGANIZER ACCESS</p><h1>Sign in to manage GWPVW Cricket</h1><form id="loginForm"><label>Email<input id="loginEmail" type="email" autocomplete="username" required></label><label>Password<input id="loginPassword" type="password" autocomplete="current-password" required minlength="6"></label><button class="primary-btn" type="submit">Sign in</button><p id="loginError" class="form-error" role="alert"></p></form></section>
 
     <section id="adminPanel" class="hidden">
       <div class="admin-title-row"><div><p class="eyebrow">CONTROL ROOM</p><h1>Tournament manager</h1></div><span id="saveState" class="status-pill"><span></span> Ready</span></div>
@@ -18,7 +18,7 @@
       <nav class="admin-tabs" aria-label="Admin sections"><button class="active" data-admin-tab="settings">Settings</button><button data-admin-tab="pools">Pools</button><button data-admin-tab="teams">Teams</button><button data-admin-tab="matches">Matches</button><button data-admin-tab="scoring">Live Scoring</button><button data-admin-tab="committee">Committee</button></nav>
 
       <section id="admin-settings" class="admin-tab active">
-        <div id="initializeCard" class="notice-card hidden"><h2>No tournament data found</h2><p>Create the empty nine-team GWPV tournament workspace.</p><button id="initializeBtn" class="primary-btn">Initialize tournament</button></div>
+        <div id="initializeCard" class="notice-card hidden"><h2>No tournament data found</h2><p>Create the empty nine-team GWPVW tournament workspace.</p><button id="initializeBtn" class="primary-btn">Initialize tournament</button></div>
         <form id="settingsForm" class="admin-card form-grid"><h2 class="span-2">Tournament details</h2><label class="span-2">Tournament name<input name="title" required></label><label class="span-2">Venue<input name="venue"></label><label>Start date<input name="startDate" type="date"></label><label>End date<input name="endDate" type="date"></label><label class="span-2">Public announcement<textarea name="announcement" rows="4"></textarea></label><p class="field-help span-2">Player phone numbers are visible in the public All Teammates directory. All schedules are displayed in Indian Standard Time (IST).</p><button class="primary-btn span-2" type="submit">Save tournament details</button></form>
       </section>
 
