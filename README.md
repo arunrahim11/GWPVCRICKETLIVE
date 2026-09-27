@@ -20,6 +20,7 @@ A responsive Firebase-powered tournament manager and public live-score website.
 - Automatic totals, wickets, legal overs, CRR, target, balls remaining, RRR, batter strike rate, and bowler economy
 - Per-match overs, powerplay, bowler limit, expected duration, innings break, and match timer settings
 - Public over summaries, powerplay indicators, commentary, and automatic batting/bowling tables
+- Per-match YouTube stream links with an embedded player on the dashboard while a match is live
 - Editable tournament details, announcements, committee, organizers, and volunteers
 - One-organizer Firebase email/password login
 - Real-time Firestore updates for every visitor

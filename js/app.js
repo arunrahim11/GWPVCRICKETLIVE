@@ -1,4 +1,4 @@
-import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, CHART_POOL_FIXTURES, CHART_TEAM_GWIDS, getMatchScore, getMatchTiming, calculateInnings } from "./data.js";
+import { createDefaultTournament, normalizeTournament, COMMITTEE_SECTIONS, CHART_POOL_FIXTURES, CHART_TEAM_GWIDS, getMatchScore, getMatchTiming, calculateInnings, getYouTubeVideoId } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
@@ -76,6 +76,7 @@ function logoMarkup(item, className = "team-logo") { const source = item ? (team
 
 function scoreCard(match, prominent = false) {
   const first = team(match.team1Id), second = team(match.team2Id);
+  const youtubeVideoId = prominent && match.status === "Live" ? getYouTubeVideoId(match.youtubeUrl) : "";
   const batting = teamName(match.battingTeamId);
   const matchScore = getMatchScore(match), activeCalc = Number(match.innings) === 2 ? matchScore.calc2 : matchScore.calc1;
   const required = matchScore.runsRequired;
@@ -87,6 +88,7 @@ function scoreCard(match, prominent = false) {
     <p class="match-meta">${esc(formatDate(match.date, match.time))} · ${esc(matchPlace(match))}</p>
     ${match.status === "Live" ? `<div class="live-metrics"><span>Innings ${esc(match.innings)}</span>${match.battingTeamId ? `<span>${esc(batting)} batting</span>` : ""}${activeCalc ? `<span>CRR ${activeCalc.runRate.toFixed(2)}</span>` : ""}${required != null ? `<span>Need ${required} from ${matchScore.ballsRemaining}</span>${matchScore.requiredRunRate != null ? `<span>RRR ${matchScore.requiredRunRate.toFixed(2)}</span>` : ""}` : ""}</div>` : ""}
     ${match.result ? `<p class="result-line">${esc(match.result)}</p>` : ""}
+    ${youtubeVideoId ? `<section class="live-stream" aria-label="Live stream for match ${esc(match.number)}"><h3>Watch Match ${esc(match.number)} live</h3><div class="live-stream-frame"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeVideoId)}" title="YouTube live stream for match ${esc(match.number)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div><a href="${esc(match.youtubeUrl)}" target="_blank" rel="noopener noreferrer">Open stream on YouTube</a></section>` : ""}
     <button class="secondary-btn" data-score-id="${esc(match.id)}">View Scoreboard</button>
   </article>`;
 }
