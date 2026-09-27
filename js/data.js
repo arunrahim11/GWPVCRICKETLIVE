@@ -16,6 +16,24 @@ export function validateCommitteePhoto(file) {
   return "";
 }
 
+export function getYouTubeVideoId(value) {
+  if (!String(value || "").trim()) return "";
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return "";
+    const host = url.hostname.toLowerCase();
+    let videoId = "";
+    if (host === "youtu.be" || host === "www.youtu.be") {
+      videoId = url.pathname.split("/").filter(Boolean)[0] || "";
+    } else if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"].includes(host)) {
+      videoId = url.searchParams.get("v") || url.pathname.match(/^\/(?:live|embed|shorts|v)\/([^/?#]+)/)?.[1] || "";
+    }
+    return /^[A-Za-z0-9_-]{6,32}$/.test(videoId) ? videoId : "";
+  } catch {
+    return "";
+  }
+}
+
 export const CHART_POOL_FIXTURES = [
   { number: 1, pool: "A", team1: "A1", team2: "A2", rest: "A5", date: "2026-09-29", time: "08:00" },
   { number: 2, pool: "B", team1: "B1", team2: "B2", date: "2026-09-29", time: "09:30" },
@@ -54,7 +72,7 @@ export function emptyTeam(serial) {
 
 export function emptyMatch(number = 1) {
   return {
-    id: createId("match"), number, team1Id: "", team2Id: "", poolId: "", stage: "", date: "", time: "", venue: "",
+    id: createId("match"), number, team1Id: "", team2Id: "", poolId: "", stage: "", date: "", time: "", venue: "", youtubeUrl: "",
     status: "Upcoming", innings: 1, battingTeamId: "", target: "", targetOverride: "", result: "", note: "", playerOfMatch: "",
     oversPerInnings: 10, powerplayOvers: 3, maxOversPerBowler: 2, expectedMinutes: 90, inningsBreakMinutes: 10,
     actualStart: "", actualEnd: "", tossWinnerId: "", tossDecision: "",
@@ -333,6 +351,7 @@ export function validateTournament(data) {
     if (match.team1Id && match.team1Id === match.team2Id) errors.push(`Match ${match.number}: choose two different teams.`);
     if (!isValidOvers(match.team1Overs) || !isValidOvers(match.team2Overs)) errors.push(`Match ${match.number}: overs must end in .0 to .5 (for example 4.5, then 5.0).`);
     if (Number(match.powerplayOvers) > Number(match.oversPerInnings)) errors.push(`Match ${match.number}: powerplay overs cannot exceed total overs.`);
+    if (match.youtubeUrl && !getYouTubeVideoId(match.youtubeUrl)) errors.push(`Match ${match.number}: enter a valid HTTPS YouTube video or live-stream URL.`);
   });
   return errors;
 }

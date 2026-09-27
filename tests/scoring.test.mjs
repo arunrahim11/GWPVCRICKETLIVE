@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto, getYouTubeVideoId } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -42,6 +42,16 @@ assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0
 assert.equal(validateCommitteePhoto({ type:"image/jpeg", size:MAX_COMMITTEE_PHOTO_BYTES }), "");
 assert.match(validateCommitteePhoto({ type:"image/jpeg", size:MAX_COMMITTEE_PHOTO_BYTES + 1 }), /500 KB or less/);
 assert.match(validateCommitteePhoto({ type:"text/plain", size:100 }), /Choose a JPG/);
+assert.equal(getYouTubeVideoId("https://www.youtube.com/watch?v=abc_DEF-1234"), "abc_DEF-1234");
+assert.equal(getYouTubeVideoId("https://youtu.be/abc_DEF-1234"), "abc_DEF-1234");
+assert.equal(getYouTubeVideoId("https://www.youtube.com/live/abc_DEF-1234"), "abc_DEF-1234");
+assert.equal(getYouTubeVideoId("https://example.com/watch?v=abc_DEF-1234"), "");
+assert.equal(getYouTubeVideoId("javascript:alert(1)"), "");
+assert.equal(getYouTubeVideoId("http://youtube.com/watch?v=abc_DEF-1234"), "");
+const invalidStream = validateTournament({ teams: Array.from({ length: 9 }, (_, index) => ({ name: "", serial: index + 1 })), matches: [{ ...emptyMatch(1), youtubeUrl: "https://example.com/live" }] });
+assert(invalidStream.some(error => error.includes("valid HTTPS YouTube")));
+assert.equal(emptyMatch(1).youtubeUrl, "");
+assert.equal(normalizeTournament({ matches: [{ number: 1, youtubeUrl: "https://youtu.be/abc_DEF-1234" }] }).matches[0].youtubeUrl, "https://youtu.be/abc_DEF-1234");
 const formatMigration = normalizeTournament({ matches: [
   { number:1, oversPerInnings:8, powerplayOvers:2, maxOversPerBowler:2, expectedMinutes:90, inningsBreakMinutes:10 },
   { number:2 },
