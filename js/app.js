@@ -97,7 +97,9 @@ function fixtureRow(match) {
 
 function renderDashboard() {
   const settings = tournament.settings;
-  const tournamentTitle = (settings.title || "GWPVW Cricket Tournament").replace(/^GWPV\b/i, "GWPVW");
+  const tournamentTitle = (settings.title || "GWPVW Cricket Tournament")
+    .replace(/^GWPV\b/i, "GWPVW")
+    .replace(/\bAssociation\b/gi, "Society");
   $("#tournamentTitle").textContent = tournamentTitle;
   document.title = `${tournamentTitle} · Live`;
   const dates = settings.startDate ? `${formatDate(settings.startDate)}${settings.endDate && settings.endDate !== settings.startDate ? ` – ${formatDate(settings.endDate)}` : ""}` : "Dates to be announced";
