@@ -5,6 +5,7 @@ A responsive Firebase-powered tournament manager and public live-score website.
 ## Included
 
 - Dashboard with live, upcoming, and completed matches
+- Society logo displayed in public and organizer branding and as the site favicon
 - Pool fixture-chart generator with team-by-team schedules and rest rounds
 - Nine editable team slots, custom pools, captains, and player lists
 - Unique GWID field and duplicate validation for every captain and player
