@@ -101,7 +101,8 @@ function renderDashboard() {
   document.title = `${settings.title || "GWPV Cricket Tournament"} · Live`;
   const dates = settings.startDate ? `${formatDate(settings.startDate)}${settings.endDate && settings.endDate !== settings.startDate ? ` – ${formatDate(settings.endDate)}` : ""}` : "Dates to be announced";
   const venue = settings.venue || "Venue to be announced";
-  $("#tournamentMeta").innerHTML = `<strong>${esc(venue)}</strong><br>${esc(dates)}`;
+  const venueMarkup = esc(venue).replace(/^TVV\s+GROUND\b/i, match => `<strong>${match.toUpperCase()}</strong>`);
+  $("#tournamentMeta").innerHTML = `${venueMarkup}<br>${esc(dates)}`;
   $("#announcement").textContent = settings.announcement || "";
   $("#announcement").classList.toggle("hidden", !settings.announcement);
   const registered = tournament.teams.filter(item => item.name.trim()).length;
