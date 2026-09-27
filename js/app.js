@@ -100,7 +100,8 @@ function renderDashboard() {
   $("#tournamentTitle").textContent = settings.title || "GWPV Cricket Tournament";
   document.title = `${settings.title || "GWPV Cricket Tournament"} · Live`;
   const dates = settings.startDate ? `${formatDate(settings.startDate)}${settings.endDate && settings.endDate !== settings.startDate ? ` – ${formatDate(settings.endDate)}` : ""}` : "Dates to be announced";
-  $("#tournamentMeta").textContent = [settings.venue || "Venue to be announced", dates].join(" · ");
+  const venue = settings.venue || "Venue to be announced";
+  $("#tournamentMeta").innerHTML = `<strong>${esc(venue)}</strong><br>${esc(dates)}`;
   $("#announcement").textContent = settings.announcement || "";
   $("#announcement").classList.toggle("hidden", !settings.announcement);
   const registered = tournament.teams.filter(item => item.name.trim()).length;
