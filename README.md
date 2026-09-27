@@ -6,6 +6,7 @@ A responsive Firebase-powered tournament manager and public live-score website.
 
 - Dashboard with live, upcoming, and completed matches
 - Society logo displayed in public and organizer branding and as the site favicon
+- Organizer photo uploads for committee members (JPG, PNG, WebP, or GIF up to 500 KB)
 - 2026 tournament poster and prize details featured on the public home page
 - Pool fixture-chart generator with team-by-team schedules and rest rounds
 - Nine editable team slots, custom pools, captains, and player lists
@@ -43,4 +44,4 @@ Each match stores an ordered delivery log for both innings. Published scores are
 
 ## Data and privacy
 
-Published tournament data, including captain and player phone numbers, is stored in the publicly readable `tournaments/gwpv-2026` document and displayed in All Teammates. Contact backups are also retained in the organizer-only `tournamentPrivate/gwpv-2026` document. Uploaded logos use separate `teamLogos/{teamId}` documents so they do not inflate the live-score document. Firestore rules allow public reads for published information and logos while restricting every write plus backup reads to the configured organizer UID.
+Published tournament data, including captain and player phone numbers, is stored in the publicly readable `tournaments/gwpv-2026` document and displayed in All Teammates. Contact backups are also retained in the organizer-only `tournamentPrivate/gwpv-2026` document. Uploaded logos and committee photos use separate `teamLogos/{teamId}` and `committeePhotos/{memberId}` documents so they do not inflate the live-score document. Firestore rules allow public reads for published information, logos, and committee photos while restricting every write plus backup reads to the configured organizer UID.

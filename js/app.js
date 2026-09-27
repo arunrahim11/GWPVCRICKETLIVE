@@ -3,7 +3,7 @@ import { getFirebaseServices } from "./firebase.js";
 
 let tournament = createDefaultTournament();
 let matchFilter = "Upcoming";
-let teamLogos = {}, teammateSearch = "", teammateTeamFilter = "all";
+let teamLogos = {}, committeePhotos = {}, teammateSearch = "", teammateTeamFilter = "all";
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -170,7 +170,7 @@ function renderTeammates() {
 function renderCommittee() {
   $("#committeeContent").innerHTML = COMMITTEE_SECTIONS.map(section => {
     const members = tournament.committees.filter(member => member.section === section.value).sort((a,b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0));
-    return `<section class="committee-section"><h2>${esc(section.label)}</h2><div class="member-grid">${members.length ? members.map(member => `<article class="member-card">${member.photoUrl ? `<img src="${esc(member.photoUrl)}" alt="${esc(member.name)}">` : `<span class="member-photo">${esc(member.name?.slice(0,2).toUpperCase() || "G")}</span>`}<h3>${esc(member.name)}</h3><strong>${esc(member.designation || "")}</strong><p>${esc(member.responsibility || "")}</p></article>`).join("") : empty("Details will be added soon.")}</div></section>`;
+    return `<section class="committee-section"><h2>${esc(section.label)}</h2><div class="member-grid">${members.length ? members.map(member => { const photo = committeePhotos[member.id] || member.photoUrl; return `<article class="member-card">${photo ? `<img src="${esc(photo)}" alt="${esc(member.name)}">` : `<span class="member-photo">${esc(member.name?.slice(0,2).toUpperCase() || "G")}</span>`}<h3>${esc(member.name)}</h3><strong>${esc(member.designation || "")}</strong><p>${esc(member.responsibility || "")}</p></article>`; }).join("") : empty("Details will be added soon.")}</div></section>`;
   }).join("");
 }
 
@@ -265,6 +265,10 @@ async function boot() {
     $("#connectionBadge").innerHTML = "<span></span> Live"; $("#connectionBadge").className = "status-pill saved";
   }, error => { $("#connectionBadge").innerHTML = "<span></span> Offline"; console.error(error); });
   services.firestoreSdk.onSnapshot(services.teamLogosRef, snapshot => { teamLogos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url)); renderAll(); }, console.error);
+  services.firestoreSdk.onSnapshot(services.committeePhotosRef, snapshot => {
+    committeePhotos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url));
+    renderCommittee();
+  }, error => { console.error("Committee photos could not be loaded.", error); });
 }
 boot().catch(console.error);
 setInterval(() => {
