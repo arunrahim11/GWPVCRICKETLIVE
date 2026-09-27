@@ -1,9 +1,20 @@
 export const MATCH_STATUSES = ["Upcoming", "Live", "Completed", "Postponed", "Cancelled"];
+export const MAX_COMMITTEE_PHOTO_BYTES = 500 * 1024;
 export const COMMITTEE_SECTIONS = [
   { value: "main", label: "Main committee" },
   { value: "organizing", label: "Organizing team" },
   { value: "volunteers", label: "Volunteers & supporting members" }
 ];
+
+export function validateCommitteePhoto(file) {
+  if (!file || !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+    return "Choose a JPG, PNG, WebP, or GIF photo.";
+  }
+  if (file.size > MAX_COMMITTEE_PHOTO_BYTES) {
+    return `Photo is ${(file.size / 1024).toFixed(1)} KB. Choose a photo of 500 KB or less.`;
+  }
+  return "";
+}
 
 export const CHART_POOL_FIXTURES = [
   { number: 1, pool: "A", team1: "A1", team2: "A2", rest: "A5", date: "2026-09-29", time: "08:00" },

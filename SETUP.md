@@ -4,7 +4,7 @@ The Firebase web configuration and organizer UID are already included. This stat
 
 ## 1. Deploy the updated Firestore rules
 
-This step is required because the site uses an organizer-only contact backup and uploaded logos use separate public logo documents.
+This step is required because the site uses an organizer-only contact backup and uploaded logos and committee photos use separate public image documents.
 
 1. Open Firebase Console → **Firestore Database → Rules**.
 2. Open `firestore.rules` from this project and copy the complete contents.
@@ -41,7 +41,7 @@ Admin login: <https://arunrahim11.github.io/GWPVCRICKETLIVE/admin.html>
 5. Upload a JPG, PNG, WebP, or GIF team logo directly in the team editor. The file must be 100 KB or smaller. The logo appears on team cards, live scores, match scoreboards, and the player directory.
 6. Captain and player phone numbers are displayed in the public All Teammates directory.
 7. **Matches:** select **New match**, choose registered teams, schedule in IST, set the overs, powerplay, maximum overs per bowler, expected duration, and innings-break time, then save. The public match cards and scoreboards show these settings in bold. The match clock starts when live scoring starts, counts elapsed time and remaining time from the configured duration (90 minutes by default), and displays the scheduled and actual start times.
-8. **Committee:** add main committee, organizing team, and volunteers/supporting members.
+8. **Committee:** add main committee, organizing team, and volunteers/supporting members. Select a member, choose a JPG, PNG, WebP, or GIF photo up to 500 KB, and upload it; the public committee page displays the photo.
 
 To create the fixture chart shown in the tournament schedule, open **Matches** and select **Create chart schedule**. Confirm to publish the PDF's 16 ordered pool matches, two semifinals, and final with the listed team assignments, dates, and IST start times. The knockout schedule is set to 2 Oct 2026 (Day 04), following the three pool days; semifinals are 10 overs and the final is 12 overs. Team-wise fixtures and Pool A rest rounds appear under **Teams & Pools**. Match scores and results are preserved, and a progressed match cannot be reassigned to different teams.
 
@@ -58,6 +58,7 @@ To create the fixture chart shown in the tournament schedule, open **Matches** a
 ## Troubleshooting
 
 - **Logo upload denied:** publish the included `firestore.rules` in Firebase Console and confirm the signed-in organizer UID matches the UID in the rules.
+- **Committee photo upload denied:** publish the updated `firestore.rules` to allow organizer uploads to `committeePhotos` and public photo reads.
 - **Missing or insufficient permissions:** republish the included `firestore.rules` and confirm the UID.
 - **Private data blocked:** the updated rules have not been deployed yet.
 - **Organizer cannot sign in:** enable Email/Password and confirm the user exists.

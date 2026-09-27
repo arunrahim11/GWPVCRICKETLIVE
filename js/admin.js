@@ -1,4 +1,4 @@
-import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration, updatePhonesByGwid, createChartSchedule } from "./data.js";
+import { createDefaultTournament, normalizeTournament, emptyMatch, createId, validateTournament, isValidOvers, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, formatDuration, updatePhonesByGwid, createChartSchedule, validateCommitteePhoto } from "./data.js";
 import { getFirebaseServices } from "./firebase.js";
 
 const wordListPhonesByGwid = {
@@ -25,9 +25,9 @@ const wordListNameMatchesByGwid = {
   "598":["A. Vijay"]
 };
 
-let services, tournament, unsubscribe, unsubscribePrivate, publicSnapshot, privateSnapshot = { teams: [] };
+let services, tournament, unsubscribe, unsubscribePrivate, unsubscribeCommitteePhotos, publicSnapshot, privateSnapshot = { teams: [] };
 let selectedTeamId = "team-1", selectedMatchId = "", selectedScoreMatchId = "", selectedMemberId = "", selectedInningsNumber = 1;
-let teamLogos = {}, unsubscribeLogos;
+let teamLogos = {}, committeePhotos = {}, unsubscribeLogos;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -59,7 +59,7 @@ async function persist(success = "Saved live") {
 
 function showAuth(user) {
   $("#loginPanel").classList.toggle("hidden", Boolean(user)); $("#adminPanel").classList.toggle("hidden", !user); $("#signOutBtn").classList.toggle("hidden", !user);
-  if (user) subscribe(); else { if (unsubscribe) unsubscribe(); if (unsubscribePrivate) unsubscribePrivate(); if (unsubscribeLogos) unsubscribeLogos(); unsubscribe = null; unsubscribePrivate = null; unsubscribeLogos = null; }
+  if (user) subscribe(); else { if (unsubscribe) unsubscribe(); if (unsubscribePrivate) unsubscribePrivate(); if (unsubscribeLogos) unsubscribeLogos(); if (unsubscribeCommitteePhotos) unsubscribeCommitteePhotos(); unsubscribe = null; unsubscribePrivate = null; unsubscribeLogos = null; unsubscribeCommitteePhotos = null; }
 }
 function mergePrivateContacts() {
   if (!publicSnapshot) return;
@@ -82,6 +82,10 @@ function subscribe() {
   }, error => { setSaveState("Permission error", "error"); console.error(error); });
   unsubscribePrivate = services.firestoreSdk.onSnapshot(services.privateTournamentRef, snapshot => { privateSnapshot = snapshot.exists() ? snapshot.data() : { teams: [] }; if (publicSnapshot) mergePrivateContacts(); }, error => { setSaveState("Private data blocked", "error"); showErrors(["Deploy the included Firestore rules to enable protected phone-number storage."]); console.error(error); });
   unsubscribeLogos = services.firestoreSdk.onSnapshot(services.teamLogosRef, snapshot => { teamLogos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url)); if (tournament) renderTeamEditor(); }, console.error);
+  unsubscribeCommitteePhotos = services.firestoreSdk.onSnapshot(services.committeePhotosRef, snapshot => {
+    committeePhotos = Object.fromEntries(snapshot.docs.map(document => [document.id, document.data().dataUrl]).filter(([,url]) => url));
+    if (tournament) renderMemberEditor();
+  }, error => { setSaveState("Committee photo access denied", "error"); showErrors(["Committee photos are unavailable. Publish the updated firestore.rules in Firebase Console."]); console.error(error); });
 }
 
 function renderAdmin() {
@@ -183,7 +187,14 @@ function renderMemberSelector() {
   if (!tournament.committees.some(member => member.id === selectedMemberId)) selectedMemberId = sorted[0]?.id || "";
   $("#memberSelector").value = selectedMemberId; $("#memberForm").classList.toggle("hidden", !selectedMemberId); $("#deleteMemberBtn").disabled = !selectedMemberId;
 }
-function renderMemberEditor() { const member = tournament.committees.find(item => item.id === selectedMemberId); if (member) fillForm($("#memberForm"), member); }
+function renderMemberEditor() {
+  const member = tournament.committees.find(item => item.id === selectedMemberId);
+  if (!member) return;
+  fillForm($("#memberForm"), member);
+  const photo = committeePhotos[member.id] || member.photoUrl;
+  $("#memberPhotoPreview").innerHTML = photo ? `<img src="${attr(photo)}" alt="${attr(member.name || "Committee member")} photo">` : "No photo";
+  $("#removeMemberPhotoBtn").disabled = !photo;
+}
 
 function parseScorecard(text, keys) {
   return text.split("\n").map(line => line.trim()).filter(Boolean).map(line => {
@@ -329,8 +340,80 @@ $("#saveAdjustmentBtn").addEventListener("click", async () => { const match = to
 
 $("#newMemberBtn").addEventListener("click", () => { const member = { id: createId("member"), section: "main", name: "", photoUrl: "", designation: "", responsibility: "", displayOrder: tournament.committees.length + 1 }; tournament.committees.push(member); selectedMemberId = member.id; renderMemberSelector(); renderMemberEditor(); });
 $("#memberSelector").addEventListener("change", event => { selectedMemberId = event.target.value; renderMemberEditor(); });
-$("#deleteMemberBtn").addEventListener("click", async () => { if (!selectedMemberId || !confirm("Delete this committee member?")) return; tournament.committees = tournament.committees.filter(member => member.id !== selectedMemberId); selectedMemberId = ""; await persist("Committee member deleted"); });
+$("#deleteMemberBtn").addEventListener("click", async () => {
+  const memberId = selectedMemberId;
+  if (!memberId || !confirm("Delete this committee member?")) return;
+  const previousMembers = tournament.committees;
+  tournament.committees = tournament.committees.filter(member => member.id !== memberId);
+  selectedMemberId = "";
+  if (!await persist("Committee member deleted")) {
+    tournament.committees = previousMembers;
+    selectedMemberId = memberId;
+    renderAdmin();
+    return;
+  }
+  if (committeePhotos[memberId]) {
+    try {
+      await services.firestoreSdk.deleteDoc(services.firestoreSdk.doc(services.committeePhotosRef, memberId));
+      delete committeePhotos[memberId];
+    } catch (error) {
+      showErrors([`Committee member was deleted, but the photo could not be removed: ${error.message || "Check your connection and try again."}`]);
+      console.error(error);
+    }
+  }
+  renderMemberSelector();
+  renderMemberEditor();
+});
 $("#memberForm").addEventListener("submit", async event => { event.preventDefault(); const member = tournament.committees.find(item => item.id === selectedMemberId); Object.assign(member, formObject(event.currentTarget), { displayOrder: Number(event.currentTarget.elements.displayOrder.value) || 0 }); await persist(); });
+$("#memberPhotoFile").addEventListener("change", async event => {
+  const file = event.target.files?.[0]; if (!file) return;
+  const validationError = validateCommitteePhoto(file);
+  if (validationError) { showErrors([validationError]); event.target.value = ""; return; }
+  const member = tournament.committees.find(item => item.id === selectedMemberId);
+  if (!member) { showErrors(["Create or select a committee member before uploading a photo."]); event.target.value = ""; return; }
+  $("#memberPhotoUploadStatus").textContent = "Reading photo…";
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("The selected photo could not be read."));
+      reader.onerror = () => reject(reader.error || new Error("The selected photo could not be read."));
+      reader.readAsDataURL(file);
+    });
+    $("#memberPhotoUploadStatus").textContent = "Uploading…";
+    await services.firestoreSdk.setDoc(services.firestoreSdk.doc(services.committeePhotosRef, member.id), {
+      memberId: member.id, dataUrl, fileName: file.name, sizeBytes: file.size, updatedAt: new Date().toISOString()
+    });
+    committeePhotos[member.id] = dataUrl;
+    $("#memberPhotoUploadStatus").textContent = "Photo uploaded";
+    renderMemberEditor();
+  } catch (error) {
+    $("#memberPhotoUploadStatus").textContent = "Upload failed";
+    showErrors([error.code === "permission-denied"
+      ? "Photo upload was denied. Publish the updated firestore.rules and confirm you are signed in with the configured organizer account."
+      : `Photo upload failed: ${error.message || "Check your connection and try again."}`]);
+    console.error(error);
+  }
+  event.target.value = "";
+});
+$("#removeMemberPhotoBtn").addEventListener("click", async () => {
+  const member = tournament.committees.find(item => item.id === selectedMemberId);
+  if (!member) return;
+  try {
+    if (committeePhotos[member.id]) {
+      await services.firestoreSdk.deleteDoc(services.firestoreSdk.doc(services.committeePhotosRef, member.id));
+      delete committeePhotos[member.id];
+    }
+    if (member.photoUrl) {
+      member.photoUrl = "";
+      if (!await persist("Committee photo removed")) return;
+    }
+    $("#memberPhotoUploadStatus").textContent = "Photo removed";
+    renderMemberEditor();
+  } catch (error) {
+    showErrors([`Photo removal failed: ${error.message || "Check your connection and try again."}`]);
+    console.error(error);
+  }
+});
 
 function openAdminTab(name) {
   const button = $$('[data-admin-tab]').find(item => item.dataset.adminTab === name) || $('[data-admin-tab="settings"]');

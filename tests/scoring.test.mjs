@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -39,6 +39,9 @@ assert(configurationErrors.some(error => error.includes("powerplay")));
 
 const migrated = normalizeTournament({ teams: [{ name:"Warriors", captain:"Vinod", players:[{name:"VINOD",role:"Captain"},{name:"Yani",role:"Vice Captain"}] }] });
 assert.equal(migrated.teams[0].players.length, 1); assert.equal(migrated.teams[0].players[0].name, "Yani");
+assert.equal(validateCommitteePhoto({ type:"image/jpeg", size:MAX_COMMITTEE_PHOTO_BYTES }), "");
+assert.match(validateCommitteePhoto({ type:"image/jpeg", size:MAX_COMMITTEE_PHOTO_BYTES + 1 }), /500 KB or less/);
+assert.match(validateCommitteePhoto({ type:"text/plain", size:100 }), /Choose a JPG/);
 const formatMigration = normalizeTournament({ matches: [
   { number:1, oversPerInnings:8, powerplayOvers:2, maxOversPerBowler:2, expectedMinutes:90, inningsBreakMinutes:10 },
   { number:2 },
