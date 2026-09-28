@@ -94,7 +94,7 @@ function scoreCard(match, prominent = false) {
 }
 
 function fixtureRow(match) {
-  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))} · Start ${esc(scheduledStart(match))}</p><p>${esc(matchPlace(match))}</p>${matchFormat(match)}${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button></div></article>`;
+  return `<article class="fixture-row"><div class="fixture-number">M${esc(match.number)}</div><div class="fixture-main"><div class="fixture-title">${esc(teamName(match.team1Id))} <span>vs</span> ${esc(teamName(match.team2Id))}</div><p>${esc(formatDate(match.date, match.time))} · Start ${esc(scheduledStart(match))}</p><p>${esc(matchPlace(match))}</p>${matchFormat(match)}${match.result ? `<strong>${esc(match.result)}</strong>` : ""}</div><div class="fixture-side">${badge(match.status)}${match.status !== "Upcoming" ? `<span>${esc(score(match, "team1"))}<br>${esc(score(match, "team2"))}</span>` : ""}<button class="text-btn" data-score-id="${esc(match.id)}">View Scoreboard</button><button class="text-btn" data-match-teams-id="${esc(match.id)}">View Team</button></div></article>`;
 }
 
 function renderDashboard() {
@@ -183,8 +183,27 @@ function renderCommittee() {
 
 function openTeam(id) {
   const item = team(id); if (!item) return;
-  const rows = [{ name: item.captain.name || "Captain not entered", gwid:item.captain.gwid, role: "Captain", isCaptain: true }, ...item.players.filter(player => player.name.trim())];
-  $("#teamDialogContent").innerHTML = `<div class="dialog-team-head">${logoMarkup(item)}<div><p class="eyebrow">TEAM #${item.serial}</p><h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p></div></div><div class="player-list">${rows.map((player, index) => `<div><span>${index + 1}</span><strong>${esc(player.name)}</strong><i>${esc(player.gwid || "GWID pending")}</i><em>${esc(player.isCaptain ? "Captain" : player.role || "Player")}</em></div>`).join("")}</div>`;
+  $("#teamDialogContent").innerHTML = `<div class="dialog-team-head">${logoMarkup(item)}<div><p class="eyebrow">TEAM #${item.serial}</p><h2>${esc(item.name)}</h2><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p></div></div>${renderTeamRoster(item)}`;
+  $("#teamDialog").showModal();
+}
+
+function renderTeamRoster(item) {
+  const players = [
+    { ...item.captain, name: item.captain.name || "Captain not entered", role: "Captain" },
+    ...item.players.filter(player => player.name.trim())
+  ];
+  return `<div class="table-scroll team-roster-scroll"><table class="team-roster"><thead><tr><th>#</th><th>Player</th><th>GWID</th><th>Role</th><th>Phone</th></tr></thead><tbody>${players.map((player, index) => `<tr><td>${index + 1}</td><td><strong>${esc(player.name)}</strong></td><td>${esc(player.gwid || "GWID pending")}</td><td>${esc(player.role || "Player")}</td><td>${player.phone ? `<a href="tel:${esc(player.phone)}">${esc(player.phone)}</a>` : `<span class="muted">Not provided</span>`}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+function renderMatchTeamPanel(id) {
+  const item = team(id);
+  if (!item) return `<section class="match-team-panel"><h3>${esc(teamName(id))}</h3><p class="muted">Roster not available yet.</p></section>`;
+  return `<section class="match-team-panel"><header>${logoMarkup(item, "match-team-logo")}<div><p class="eyebrow">TEAM #${item.serial}</p><h3>${esc(item.name)}</h3><p>${esc(pool(item.poolId)?.name || "Pool not assigned")}</p></div></header>${renderTeamRoster(item)}</section>`;
+}
+
+function openMatchTeams(id) {
+  const match = tournament.matches.find(item => item.id === id); if (!match) return;
+  $("#teamDialogContent").innerHTML = `<div class="match-team-dialog-head"><p class="eyebrow">MATCH ${esc(match.number)} · TEAM SHEETS</p><h2><span>${esc(teamName(match.team1Id))}</span><b>VS</b><span>${esc(teamName(match.team2Id))}</span></h2></div><div class="match-team-panels">${renderMatchTeamPanel(match.team1Id)}${renderMatchTeamPanel(match.team2Id)}</div>`;
   $("#teamDialog").showModal();
 }
 
@@ -245,6 +264,7 @@ function renderScoreDialog(match, show = false) {
 function renderAll() { renderDashboard(); renderTeams(); renderTeammates(); renderMatches(); renderCommittee(); bindDynamicButtons(); }
 function bindDynamicButtons() {
   $$('[data-score-id]').forEach(button => button.onclick = () => openScore(button.dataset.scoreId));
+  $$('[data-match-teams-id]').forEach(button => button.onclick = () => openMatchTeams(button.dataset.matchTeamsId));
 }
 
 function route(name) {
