@@ -1,2 +1,24 @@
-.home-poster-section{max-width:1080px;margin:36px auto 10px;padding:0 24px}.home-poster-heading{text-align:center;margin-bottom:20px}.home-poster-heading h2{margin:0;font:700 clamp(26px,4vw,38px) Oswald;text-transform:uppercase}.home-poster-heading>p:last-child{margin:8px 0;color:var(--muted)}.home-poster-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(260px,.8fr);align-items:center;justify-items:center;gap:28px;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(145deg,var(--card),#0b211c);box-shadow:var(--shadow)}.tournament-poster{display:block;width:min(100%,440px);height:auto;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.3)}.prize-details{width:min(100%,380px);display:grid;grid-template-columns:1fr 1fr;gap:12px}.prize-details article{min-height:110px;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:18px;border:1px solid rgba(201,240,85,.22);border-radius:14px;background:rgba(201,240,85,.06)}.prize-details article span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px}.prize-details article strong{color:var(--lime);font:700 clamp(20px,3vw,29px) Oswald}.prize-details>p{grid-column:1/-1;margin:4px 0 0;padding:14px;border-radius:12px;background:rgba(255,255,255,.04);color:var(--muted);text-align:center;line-height:1.7}
-@media(max-width:700px){.home-poster-section{margin-top:26px;padding:0 16px}.home-poster-layout{grid-template-columns:1fr;gap:18px;padding:14px}.tournament-poster{width:min(100%,390px)}.prize-details{width:100%;max-width:420px}}
+.home-poster-section{max-width:1180px;margin:36px auto 10px;padding:0 24px}
+.home-poster-heading{text-align:center;margin-bottom:20px}
+.home-poster-heading h2{margin:0;font:700 clamp(26px,4vw,38px) Oswald;text-transform:uppercase}
+.home-poster-heading>p:last-child{margin:8px 0;color:var(--muted)}
+.home-poster-layout{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);align-items:start;gap:22px;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(145deg,var(--card),#0b211c);box-shadow:var(--shadow)}
+.tournament-poster{display:block;width:min(100%,440px);height:auto;justify-self:center;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.3)}
+.prize-details{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.prize-details article{min-height:96px;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:16px;border:1px solid rgba(201,240,85,.22);border-radius:14px;background:rgba(201,240,85,.06);text-align:center}
+.prize-details article span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+.prize-details article strong{color:var(--lime);font:700 clamp(20px,3vw,29px) Oswald}
+.sponsor-panel{min-width:0;padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(6,23,19,.5)}
+.sponsor-heading{margin-bottom:12px}
+.sponsor-heading .eyebrow{margin-bottom:5px}
+.sponsor-heading h3{margin:0;font:700 clamp(22px,3vw,30px) Oswald;text-transform:uppercase}
+.sponsor-heading>p:last-child{margin:6px 0 0;color:var(--muted);font-size:13px}
+.sponsor-list{display:grid;gap:7px;max-height:690px;margin:0;padding:0 6px 0 28px;overflow:auto;scrollbar-color:var(--line) transparent}
+.sponsor-list li{padding:9px 11px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.035)}
+.sponsor-list li::marker{color:var(--lime);font-weight:800}
+.sponsor-list li strong,.sponsor-list li span{display:block}
+.sponsor-list li strong{font-size:13px}
+.sponsor-list li span{margin-top:3px;color:var(--lime);font-size:12px;font-weight:700}
+.home-event-meta{margin:12px 0 0;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);color:var(--muted);text-align:center;line-height:1.7}
+@media(max-width:850px){.prize-details{grid-template-columns:repeat(2,minmax(0,1fr))}.home-poster-layout{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:14px;padding:14px}.sponsor-panel{padding:13px}}
+@media(max-width:700px){.home-poster-section{margin-top:26px;padding:0 16px}.home-poster-layout{grid-template-columns:1fr;gap:16px}.tournament-poster{width:min(100%,390px)}.sponsor-panel{width:100%}.sponsor-list{max-height:520px}}
