@@ -28,10 +28,14 @@
         <div class="hero-copy"><p class="eyebrow">GWPVW CRICKET</p><h1 id="tournamentTitle">GWPVW Cricket Tournament</h1><p id="tournamentMeta" class="hero-subtitle">Tournament details will appear here.</p><p id="announcement" class="announcement hidden"></p></div>
         <div class="hero-ball" aria-hidden="true"><span></span></div>
       </div>
-      <div class="quick-stats" aria-label="Tournament summary">
-        <article><strong id="teamCount">0</strong><span>Registered teams</span></article><article><strong id="matchCount">0</strong><span>Total matches</span></article>
-        <article><strong id="completedCount">0</strong><span>Completed</span></article><article><strong id="remainingCount">0</strong><span>Remaining</span></article>
-      </div>
+      <section class="dashboard-live-section" aria-labelledby="liveMatchesHeading">
+        <div class="quick-stats" aria-label="Tournament summary">
+          <article><strong id="teamCount">0</strong><span>Registered teams</span></article><article><strong id="matchCount">0</strong><span>Total matches</span></article>
+          <article><strong id="completedCount">0</strong><span>Completed</span></article><article><strong id="remainingCount">0</strong><span>Remaining</span></article>
+        </div>
+        <div class="section-heading dashboard-live-heading"><div><p class="eyebrow">LIVE NOW</p><h2 id="liveMatchesHeading">Live matches</h2></div><span id="lastUpdated" class="updated-label">Waiting for data</span></div>
+        <div id="liveMatches" class="card-grid"></div>
+      </section>
       <section class="home-poster-section" aria-labelledby="tournamentPosterTitle">
         <div class="home-poster-heading"><p class="eyebrow">GWPVW CRICKET 2026</p><h2 id="tournamentPosterTitle">Tournament poster &amp; prizes</h2><p>Official tournament details from the association.</p></div>
         <div class="home-poster-layout">
@@ -65,8 +69,6 @@
         <p class="home-event-meta">29 September–2 October 2026 · TVV Grounds, Reddy Puram, HNK</p>
       </section>
       <div class="content-section">
-        <div class="section-heading"><div><p class="eyebrow">LIVE NOW</p><h2>Live matches</h2></div><span id="lastUpdated" class="updated-label">Waiting for data</span></div>
-        <div id="liveMatches" class="card-grid"></div>
         <div class="dashboard-columns">
           <section><div class="section-heading small-heading"><h2>Upcoming matches</h2></div><div id="upcomingMatches" class="fixture-list"></div></section>
           <section><div class="section-heading small-heading"><h2>Recent results</h2></div><div id="recentMatches" class="fixture-list"></div></section>
