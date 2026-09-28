@@ -257,7 +257,7 @@ $("#createChartScheduleBtn").addEventListener("click", async () => {
   try {
     const matches = createChartSchedule(tournament.teams, tournament.matches);
     const chartGames = matches.filter(match => Number(match.number) <= 19).length;
-    if (!confirm(`Publish the ${chartGames}-match fixture chart from the PDF with its team assignments, dates, start times, and knockout format? Existing scores and results are preserved unless a progressed match would need different teams.`)) return;
+    if (!confirm(`Refresh all ${chartGames} chart fixtures with their team assignments, dates, start times, knockout format, and venue? Existing scores and results are preserved unless a progressed match would need different teams.`)) return;
     tournament.matches = matches;
     if (await persist("Fixture chart published")) {
       renderMatchSelector();

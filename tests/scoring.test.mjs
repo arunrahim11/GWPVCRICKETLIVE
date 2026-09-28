@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto, getYouTubeVideoId } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto, getYouTubeVideoId, TOURNAMENT_VENUE } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -91,6 +91,7 @@ const chartTeams = [
 ];
 const chartSchedule = createChartSchedule(chartTeams);
 assert.equal(chartSchedule.length, 19);
+assert(chartSchedule.every(item => item.venue === TOURNAMENT_VENUE));
 assert.equal(chartSchedule.filter(item => item.stage === "Pool A").length, 10);
 assert.equal(chartSchedule.filter(item => item.stage === "Pool B").length, 6);
 assert.equal(chartSchedule.filter(item => item.stage.startsWith("Semi-final")).length, 2);
@@ -131,12 +132,15 @@ for (let index = 1; index < CHART_POOL_FIXTURES.length; index += 1) {
   assert(!previous.has(chartSchedule[index].team1Id) && !previous.has(chartSchedule[index].team2Id), `Consecutive pool matches share a team at match ${index + 1}.`);
 }
 assert.equal(CHART_POOL_FIXTURES.filter(item => item.rest).length, 10);
-const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"team-a4", team2Id:"team-a3", date:"2026-09-30", time:"16:00", stage:"Match 01" };
+const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"team-a4", team2Id:"team-a3", date:"2026-09-30", time:"16:00", stage:"Match 01", team1Runs:10, youtubeUrl:"https://www.youtube.com/watch?v=abc_DEF-1234" };
 const refreshedChart = createChartSchedule(chartTeams, [existingChartMatch]);
 assert.equal(refreshedChart.find(item => item.number === 1).id, "existing-match-1");
 assert.equal(refreshedChart.find(item => item.number === 1).date, "2026-09-29");
 assert.equal(refreshedChart.find(item => item.number === 1).time, "08:00");
 assert.equal(refreshedChart.find(item => item.number === 1).stage, "Pool A");
+assert.equal(refreshedChart.find(item => item.number === 1).venue, TOURNAMENT_VENUE);
+assert.equal(refreshedChart.find(item => item.number === 1).team1Runs, 10);
+assert.equal(refreshedChart.find(item => item.number === 1).youtubeUrl, "https://www.youtube.com/watch?v=abc_DEF-1234");
 assert.throws(() => createChartSchedule(chartTeams, [{ ...emptyMatch(1), team1Id:"old", team2Id:"fixture", status:"Completed" }]), /cannot be replaced/);
 
 const gwidTeams = Array.from({ length:9 }, (_,index) => ({ name:"", serial:index+1, captain:{name:"",gwid:""}, players:[] }));

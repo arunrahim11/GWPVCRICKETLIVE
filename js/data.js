@@ -1,5 +1,6 @@
 export const MATCH_STATUSES = ["Upcoming", "Live", "Completed", "Postponed", "Cancelled"];
 export const MAX_COMMITTEE_PHOTO_BYTES = 500 * 1024;
+export const TOURNAMENT_VENUE = "TVV Grounds, Reddy Puram, HNK";
 export const COMMITTEE_SECTIONS = [
   { value: "main", label: "Main committee" },
   { value: "organizing", label: "Organizing team" },
@@ -120,9 +121,10 @@ export function createChartSchedule(teams, existingMatches = []) {
         stage: fixture.stage,
         date: fixture.date,
         time: fixture.time,
+        venue: TOURNAMENT_VENUE,
         ...(fixture.oversPerInnings ? { oversPerInnings: fixture.oversPerInnings } : {}),
         ...(teamsChanged ? {
-          status: "Upcoming", venue: "", innings: 1, battingTeamId: "",
+          status: "Upcoming", innings: 1, battingTeamId: "",
           target: "", targetOverride: "", result: "", note: "", playerOfMatch: "",
           actualStart: "", actualEnd: "", currentStriker: "", currentNonStriker: "", currentBowler: "",
           team1Runs: "", team1Wickets: "", team1Overs: "", team2Runs: "", team2Wickets: "", team2Overs: "",
