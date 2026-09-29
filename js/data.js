@@ -35,6 +35,19 @@ export function getYouTubeVideoId(value) {
   }
 }
 
+export function isValidCricHeroesUrl(value) {
+  if (!String(value || "").trim()) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      && !url.username
+      && !url.password
+      && (url.hostname.toLowerCase() === "cricheroes.com" || url.hostname.toLowerCase().endsWith(".cricheroes.com"));
+  } catch {
+    return false;
+  }
+}
+
 export const CHART_POOL_FIXTURES = [
   { number: 1, pool: "A", team1: "A1", team2: "A2", rest: "A5", date: "2026-09-29", time: "08:00" },
   { number: 2, pool: "B", team1: "B1", team2: "B2", date: "2026-09-29", time: "09:30" },
@@ -73,7 +86,7 @@ export function emptyTeam(serial) {
 
 export function emptyMatch(number = 1) {
   return {
-    id: createId("match"), number, team1Id: "", team2Id: "", poolId: "", stage: "", date: "", time: "", venue: "", youtubeUrl: "",
+    id: createId("match"), number, team1Id: "", team2Id: "", poolId: "", stage: "", date: "", time: "", venue: "", youtubeUrl: "", cricheroesUrl: "",
     status: "Upcoming", innings: 1, battingTeamId: "", target: "", targetOverride: "", result: "", note: "", playerOfMatch: "",
     oversPerInnings: 10, powerplayOvers: 3, maxOversPerBowler: 2, expectedMinutes: 90, inningsBreakMinutes: 10,
     actualStart: "", actualEnd: "", tossWinnerId: "", tossDecision: "",
@@ -354,6 +367,7 @@ export function validateTournament(data) {
     if (!isValidOvers(match.team1Overs) || !isValidOvers(match.team2Overs)) errors.push(`Match ${match.number}: overs must end in .0 to .5 (for example 4.5, then 5.0).`);
     if (Number(match.powerplayOvers) > Number(match.oversPerInnings)) errors.push(`Match ${match.number}: powerplay overs cannot exceed total overs.`);
     if (match.youtubeUrl && !getYouTubeVideoId(match.youtubeUrl)) errors.push(`Match ${match.number}: enter a valid HTTPS YouTube video or live-stream URL.`);
+    if (match.cricheroesUrl && !isValidCricHeroesUrl(match.cricheroesUrl)) errors.push(`Match ${match.number}: enter a valid HTTPS CricHeroes URL.`);
   });
   return errors;
 }

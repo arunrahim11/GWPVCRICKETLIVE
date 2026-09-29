@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto, getYouTubeVideoId, TOURNAMENT_VENUE } from "../js/data.js";
+import { emptyMatch, calculateInnings, getMatchScore, getMatchTiming, syncMatchSummary, validateTournament, normalizeTournament, updatePhonesByGwid, createChartSchedule, CHART_POOL_FIXTURES, MAX_COMMITTEE_PHOTO_BYTES, validateCommitteePhoto, getYouTubeVideoId, isValidCricHeroesUrl, TOURNAMENT_VENUE } from "../js/data.js";
 
 const delivery = (id, batRuns = 0, extraType = "none", extraRuns = 0, more = {}) => ({ id, batter: "A", bowler: "B", batRuns, extraType, extraRuns, ...more });
 const match = emptyMatch(7);
@@ -48,6 +48,14 @@ assert.equal(getYouTubeVideoId("https://www.youtube.com/live/abc_DEF-1234"), "ab
 assert.equal(getYouTubeVideoId("https://example.com/watch?v=abc_DEF-1234"), "");
 assert.equal(getYouTubeVideoId("javascript:alert(1)"), "");
 assert.equal(getYouTubeVideoId("http://youtube.com/watch?v=abc_DEF-1234"), "");
+assert.equal(isValidCricHeroesUrl("https://cricheroes.com/tournament/2213938/matches/live-matches"), true);
+assert.equal(isValidCricHeroesUrl("https://www.cricheroes.com/match/123"), true);
+assert.equal(isValidCricHeroesUrl("https://example.com/cricheroes.com"), false);
+assert.equal(isValidCricHeroesUrl("javascript:alert(1)"), false);
+assert.equal(emptyMatch(1).cricheroesUrl, "");
+assert.equal(normalizeTournament({ matches: [{ number: 1, cricheroesUrl: "https://cricheroes.com/match/123" }] }).matches[0].cricheroesUrl, "https://cricheroes.com/match/123");
+const invalidCricHeroes = validateTournament({ teams: Array.from({ length: 9 }, (_, index) => ({ name: "", serial: index + 1 })), matches: [{ ...emptyMatch(1), cricheroesUrl: "https://example.com/live" }] });
+assert(invalidCricHeroes.some(error => error.includes("valid HTTPS CricHeroes")));
 const invalidStream = validateTournament({ teams: Array.from({ length: 9 }, (_, index) => ({ name: "", serial: index + 1 })), matches: [{ ...emptyMatch(1), youtubeUrl: "https://example.com/live" }] });
 assert(invalidStream.some(error => error.includes("valid HTTPS YouTube")));
 assert.equal(emptyMatch(1).youtubeUrl, "");
@@ -132,7 +140,7 @@ for (let index = 1; index < CHART_POOL_FIXTURES.length; index += 1) {
   assert(!previous.has(chartSchedule[index].team1Id) && !previous.has(chartSchedule[index].team2Id), `Consecutive pool matches share a team at match ${index + 1}.`);
 }
 assert.equal(CHART_POOL_FIXTURES.filter(item => item.rest).length, 10);
-const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"team-a4", team2Id:"team-a3", date:"2026-09-30", time:"16:00", stage:"Match 01", team1Runs:10, youtubeUrl:"https://www.youtube.com/watch?v=abc_DEF-1234" };
+const existingChartMatch = { ...emptyMatch(1), id:"existing-match-1", team1Id:"team-a4", team2Id:"team-a3", date:"2026-09-30", time:"16:00", stage:"Match 01", team1Runs:10, youtubeUrl:"https://www.youtube.com/watch?v=abc_DEF-1234", cricheroesUrl:"https://cricheroes.com/match/123" };
 const refreshedChart = createChartSchedule(chartTeams, [existingChartMatch]);
 assert.equal(refreshedChart.find(item => item.number === 1).id, "existing-match-1");
 assert.equal(refreshedChart.find(item => item.number === 1).date, "2026-09-29");
@@ -141,6 +149,7 @@ assert.equal(refreshedChart.find(item => item.number === 1).stage, "Pool A");
 assert.equal(refreshedChart.find(item => item.number === 1).venue, TOURNAMENT_VENUE);
 assert.equal(refreshedChart.find(item => item.number === 1).team1Runs, 10);
 assert.equal(refreshedChart.find(item => item.number === 1).youtubeUrl, "https://www.youtube.com/watch?v=abc_DEF-1234");
+assert.equal(refreshedChart.find(item => item.number === 1).cricheroesUrl, "https://cricheroes.com/match/123");
 assert.throws(() => createChartSchedule(chartTeams, [{ ...emptyMatch(1), team1Id:"old", team2Id:"fixture", status:"Completed" }]), /cannot be replaced/);
 
 const gwidTeams = Array.from({ length:9 }, (_,index) => ({ name:"", serial:index+1, captain:{name:"",gwid:""}, players:[] }));
